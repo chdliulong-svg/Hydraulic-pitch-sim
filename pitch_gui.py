@@ -545,7 +545,25 @@ class PitchMainWindow(QMainWindow):
             face_layout.addWidget(b)
 
         self.chk_sync_all = QCheckBox("三叶片同步")
-        self.chk_sync_all.setStyleSheet("color: #FFD166; font-size: 11px; font-weight: bold;")
+        self.chk_sync_all.setStyleSheet("""
+            QCheckBox {
+                color: #FFD166;
+                font-size: 11px;
+                font-weight: bold;
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 14px;
+                height: 14px;
+                border: 1px solid #4E5266;
+                border-radius: 3px;
+                background-color: #262936;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #06D6A0;
+                border-color: #06D6A0;
+            }
+        """)
         self.chk_sync_all.stateChanged.connect(self._on_sync_changed)
         face_layout.addWidget(self.chk_sync_all)
 
@@ -597,7 +615,8 @@ class PitchMainWindow(QMainWindow):
         self.spin_target.setRange(0.0, 822.0)
         self.spin_target.setValue(150.0)
         self.spin_target.setSuffix(" mm")
-        self.spin_target.setFixedWidth(85)
+        self.spin_target.setFixedWidth(90)
+        self.spin_target.setStyleSheet("background-color: #2B2E3B; color: #4CC9F0; font-weight: bold; border: 1px solid #4E5266; border-radius: 4px; padding: 2px 4px; font-family: Consolas; font-size: 12px;")
 
         self.slider_target.valueChanged.connect(lambda v: self.spin_target.setValue(float(v)))
         self.spin_target.valueChanged.connect(self._on_target_changed)
@@ -648,7 +667,8 @@ class PitchMainWindow(QMainWindow):
         self.spin_voltage.setSingleStep(0.1)
         self.spin_voltage.setValue(0.0)
         self.spin_voltage.setSuffix(" V")
-        self.spin_voltage.setFixedWidth(85)
+        self.spin_voltage.setFixedWidth(90)
+        self.spin_voltage.setStyleSheet("background-color: #2B2E3B; color: #FFD166; font-weight: bold; border: 1px solid #4E5266; border-radius: 4px; padding: 2px 4px; font-family: Consolas; font-size: 12px;")
 
         self.slider_voltage.valueChanged.connect(lambda v: self.spin_voltage.setValue(v / 10.0))
         self.spin_voltage.valueChanged.connect(self._on_voltage_changed)
@@ -709,8 +729,8 @@ class PitchMainWindow(QMainWindow):
         lock_btn_row.addWidget(self.btn_lock_engage)
         lock_layout.addLayout(lock_btn_row)
 
-        self.lbl_lock_detail = QLabel("状态: 🟢 已解锁 (0.0 mm) | 90°对准: 否")
-        self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
+        self.lbl_lock_detail = QLabel("状态: 🟢 已解锁 | 90°对齐: 否")
+        self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
         lock_layout.addWidget(self.lbl_lock_detail)
 
         layout.addWidget(self.lock_box)
@@ -723,14 +743,14 @@ class PitchMainWindow(QMainWindow):
         safe_layout.setContentsMargins(8, 8, 8, 8)
         safe_layout.setSpacing(6)
 
-        self.btn_feather = QPushButton("🛑 紧急顺桨")
+        self.btn_feather = QPushButton("🛑 模拟紧急顺桨")
         self.btn_feather.setFixedHeight(32)
         self.btn_feather.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_feather.clicked.connect(self._on_toggle_feather)
         safe_layout.addWidget(self.btn_feather)
 
         self.lbl_safe_status = QLabel("状态: 正常运行")
-        self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px;")
+        self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
         safe_layout.addWidget(self.lbl_safe_status)
         layout.addWidget(self.safe_box)
 
@@ -770,6 +790,7 @@ class PitchMainWindow(QMainWindow):
             self.tele_labels[key] = v_lbl
 
         layout.addWidget(tele_box)
+        layout.addStretch()
 
         self._update_face_buttons_style()
         self._update_mode_styles()
@@ -1038,7 +1059,7 @@ class PitchMainWindow(QMainWindow):
                 }
             """)
             self.lbl_safe_status.setText(f"状态: ⚠️ 【{self.active_blade}面】应急顺桨中")
-            self.lbl_safe_status.setStyleSheet("color: #EF233C; font-weight: bold; font-size: 11px;")
+            self.lbl_safe_status.setStyleSheet("color: #EF233C; font-weight: bold; font-size: 11px; padding: 4px 6px; background-color: #381519; border: 1px solid #5C2229; border-radius: 4px;")
         else:
             self.btn_feather.setText("🛑 模拟紧急顺桨")
             self.btn_feather.setStyleSheet("""
@@ -1055,7 +1076,7 @@ class PitchMainWindow(QMainWindow):
                 }
             """)
             self.lbl_safe_status.setText("状态: 正常运行")
-            self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px;")
+            self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
 
     def _update_lock_buttons_style(self):
         u130 = self.u_130_cmd[self.active_blade]
@@ -1279,11 +1300,11 @@ class PitchMainWindow(QMainWindow):
         align_str = "90°对齐: 是" if active_t.switch_129 else "90°对齐: 否"
         if active_t.is_locked:
             self.lbl_lock_detail.setText(f"状态: 🔒 已锁定 ({active_t.lock_pin_mm:4.1f}mm) | {align_str}")
-            self.lbl_lock_detail.setStyleSheet("color: #FFB703; font-size: 11px; font-weight: bold;")
+            self.lbl_lock_detail.setStyleSheet("color: #FFB703; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #2B2317; border: 1px solid #5C4A22; border-radius: 4px;")
         else:
             lock_str = "🟢 已解锁" if active_t.switch_S_unlocked else f"⏳ 动作中 ({active_t.lock_pin_mm:4.1f}mm)"
             self.lbl_lock_detail.setText(f"状态: {lock_str} | {align_str}")
-            self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
+            self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
 
         # 4. 遥测读数 (当前活动面)
         self.tele_labels["disp"].setText(f"{active_t.displacement_mm:5.1f} mm")
