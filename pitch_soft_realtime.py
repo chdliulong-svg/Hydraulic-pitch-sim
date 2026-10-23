@@ -89,6 +89,31 @@ class RemoteSystemFeedback:
 
 
 @dataclass
+class ServiceBoxInputs:
+    """机旁手持操作终端 (Service Box) 输入控制指令 (UI -> Sim/PLC)"""
+    connected: bool = False             # 航插物理连接状态 (True=插入就绪)
+    blade_chosen: str = 'B'             # 选中的叶片 ('A', 'B', 'C')
+    fine: bool = False                  # 开桨点动 (Pitch to Power，减小桨距角)
+    feather: bool = False               # 顺桨点动 (Pitch to Vane，增大桨距角至 90°)
+    fast_speed: bool = False            # 调桨速度模式 (True=快速调桨, False=慢速微调)
+    lock_engage: bool = False           # 机械锁插销锁死指令
+    lock_disengage: bool = False        # 机械锁拔销解锁指令
+    pos0_calibrate: bool = False        # 0° 物理零位基准标定
+    clear_alarm: bool = False           # 故障清除/报警复位
+
+
+@dataclass
+class ServiceBoxTelemetry:
+    """机旁手持操作终端 (Service Box) 状态遥测反馈 (Sim/PLC -> UI)"""
+    active_blade: str = 'B'             # PLC/系统认定的受控叶片 ('A', 'B', 'C')
+    n_safe_blades: int = 3              # 安全位叶片总数 (0~3)
+    blade_safe: Dict[str, bool] = field(default_factory=lambda: {'A': True, 'B': True, 'C': True})
+    alarm_status: bool = False          # 手操盒综合报警红灯状态
+    in_control: bool = False            # 手操盒是否已取得排他主控权
+    connected_fb: bool = False          # 航插接入状态确认
+
+
+@dataclass
 class PitchTelemetryData:
     """本地 UI 绑定的遥测数据"""
     timestamp: float = 0.0       # 仿真时钟 (s)
@@ -156,6 +181,10 @@ class SoftRealtimePitchEngine:
         self.temp_sim = TemperatureSystemSim(dt=self.cycle_time)
         self._temp_telemetry = TemperatureTelemetry()
 
+        # 机旁手持操作终端 (Service Box) 状态
+        self.service_box_inputs = ServiceBoxInputs()
+        self.service_box_telemetry = ServiceBoxTelemetry()
+
         self._running = False
         self._thread = None
         self.sim_time = 0.0
@@ -214,6 +243,40 @@ class SoftRealtimePitchEngine:
                         )
                         for k in self.blades
                     }
+
+                    # 若机旁手持终端接入且处于本地模式，手操盒点动与锁指令直接作用于选中叶片
+                    sbi = self.service_box_inputs
+                    if sbi.connected and sbi.blade_chosen in current_inputs:
+                        b_act = sbi.blade_chosen
+                        if sbi.lock_disengage:
+                            current_inputs[b_act].u_valve_130 = 1.0
+                            current_inputs[b_act].u_valve_132 = 1.0
+                        elif sbi.lock_engage:
+                            current_inputs[b_act].u_valve_130 = 0.0
+                            current_inputs[b_act].u_valve_132 = 0.0
+
+                        spd_scale = 8.0 if sbi.fast_speed else 3.0
+                        if sbi.fine:
+                            current_inputs[b_act].u_prop = -spd_scale
+                            current_inputs[b_act].u_enable = 1.0
+                        elif sbi.feather:
+                            current_inputs[b_act].u_prop = +spd_scale
+                            current_inputs[b_act].u_enable = 1.0
+
+                        n_safe = 0
+                        safe_map = {}
+                        for b in self.blades:
+                            p = self.plants[b]
+                            is_safe = (p.x * 1000.0 >= 750.0) and p.is_locked
+                            safe_map[b] = is_safe
+                            if is_safe:
+                                n_safe += 1
+                        self.service_box_telemetry.active_blade = sbi.blade_chosen
+                        self.service_box_telemetry.n_safe_blades = n_safe
+                        self.service_box_telemetry.blade_safe = safe_map
+                        self.service_box_telemetry.in_control = True
+                        self.service_box_telemetry.alarm_status = (n_safe < 2)
+                        self.service_box_telemetry.connected_fb = True
 
             # 2. 细分子步积分 (保证高刚性液压连续性方程的数值稳定)
             step_outputs = {}
@@ -465,6 +528,53 @@ class SoftRealtimePitchEngine:
                 temperature=self._temp_telemetry,
                 blades=blade_fbs
             )
+
+    # -------------------------------------------------------------------------
+    # 机旁手持操作终端 (Service Box) 接口
+    # -------------------------------------------------------------------------
+    def set_service_box_inputs(self, connected=None, blade_chosen=None, fine=None, feather=None,
+                               fast_speed=None, lock_engage=None, lock_disengage=None,
+                               pos0_calibrate=None, clear_alarm=None):
+        """设置机旁手操盒输入控制指令 (UI -> Sim/PLC)"""
+        with self._lock:
+            sbi = self.service_box_inputs
+            if connected is not None:
+                sbi.connected = bool(connected)
+            if blade_chosen is not None:
+                sbi.blade_chosen = str(blade_chosen)
+            if fine is not None:
+                sbi.fine = bool(fine)
+            if feather is not None:
+                sbi.feather = bool(feather)
+            if fast_speed is not None:
+                sbi.fast_speed = bool(fast_speed)
+            if lock_engage is not None:
+                sbi.lock_engage = bool(lock_engage)
+            if lock_disengage is not None:
+                sbi.lock_disengage = bool(lock_disengage)
+            if pos0_calibrate is not None:
+                sbi.pos0_calibrate = bool(pos0_calibrate)
+            if clear_alarm is not None:
+                sbi.clear_alarm = bool(clear_alarm)
+
+    def get_service_box_telemetry(self) -> ServiceBoxTelemetry:
+        """获取机旁手操盒最新遥测反馈 (Sim/PLC -> UI)"""
+        with self._lock:
+            import copy
+            return copy.deepcopy(self.service_box_telemetry)
+
+    def update_service_box_telemetry(self, active_blade: str, n_safe_blades: int,
+                                     blade_safe_a: bool, blade_safe_b: bool, blade_safe_c: bool,
+                                     alarm_status: bool, in_control: bool):
+        """由 OPC UA 网关周期更新 PLC 真实手操盒状态"""
+        with self._lock:
+            sbt = self.service_box_telemetry
+            sbt.active_blade = str(active_blade)
+            sbt.n_safe_blades = int(n_safe_blades)
+            sbt.blade_safe = {'A': bool(blade_safe_a), 'B': bool(blade_safe_b), 'C': bool(blade_safe_c)}
+            sbt.alarm_status = bool(alarm_status)
+            sbt.in_control = bool(in_control)
+            sbt.connected_fb = self.service_box_inputs.connected
 
     # -------------------------------------------------------------------------
     # 本地控制输入接口 (本地 UI 交互调用)

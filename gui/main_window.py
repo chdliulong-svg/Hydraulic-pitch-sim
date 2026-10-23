@@ -21,6 +21,7 @@ from gui.left_control_panel import LeftControlPanel
 from gui.blade_tab import BladeTabWidget, BladeFaceTabWidget
 from gui.lubrication_tab import LubricationTabWidget
 from gui.temperature_tab import TemperatureTabWidget
+from gui.service_box_tab import ServiceBoxTabWidget
 
 
 class PitchMainWindow(QMainWindow):
@@ -227,6 +228,19 @@ class PitchMainWindow(QMainWindow):
         self.temp_tab.ambientChanged.connect(lambda t: self.engine.set_ambient_temperature(t))
         self.temp_tab.faultsChanged.connect(self._on_temp_faults_changed)
         self.tab_widget.addTab(self.temp_tab, "温度监控系统")
+
+        # Tab 5: 机旁手操盒 (就地手动操作终端)
+        self.service_box_tab = ServiceBoxTabWidget(buf_size=self.buf_size)
+        self.service_box_tab.pendantConnectedChanged.connect(self._on_pendant_connected_changed)
+        self.service_box_tab.bladeChosenChanged.connect(self._on_pendant_blade_chosen)
+        self.service_box_tab.fineJogChanged.connect(self._on_pendant_fine_jog)
+        self.service_box_tab.featherJogChanged.connect(self._on_pendant_feather_jog)
+        self.service_box_tab.speedModeChanged.connect(self._on_pendant_speed_mode)
+        self.service_box_tab.lockEngageTriggered.connect(self._on_pendant_lock_engage)
+        self.service_box_tab.lockDisengageTriggered.connect(self._on_pendant_lock_disengage)
+        self.service_box_tab.pos0CalibrateTriggered.connect(self._on_pendant_pos0_calibrate)
+        self.service_box_tab.clearAlarmTriggered.connect(self._on_pendant_clear_alarm)
+        self.tab_widget.addTab(self.service_box_tab, "机旁手操盒")
 
         right_layout.addWidget(self.tab_widget)
         splitter.addWidget(right_panel)
@@ -466,6 +480,36 @@ class PitchMainWindow(QMainWindow):
     def _on_temp_faults_changed(self, cold, fan_fail, pt100):
         self.engine.set_temp_faults(extreme_cold=cold, fan_fail=fan_fail, pt100_open=pt100)
 
+    # 机旁手持操作终端 (Service Box) 交互事件响应
+    def _on_pendant_connected_changed(self, connected: bool):
+        self.engine.set_service_box_inputs(connected=connected)
+
+    def _on_pendant_blade_chosen(self, blade_chosen: str):
+        self.engine.set_service_box_inputs(blade_chosen=blade_chosen)
+
+    def _on_pendant_fine_jog(self, pressed: bool):
+        self.engine.set_service_box_inputs(fine=pressed)
+
+    def _on_pendant_feather_jog(self, pressed: bool):
+        self.engine.set_service_box_inputs(feather=pressed)
+
+    def _on_pendant_speed_mode(self, is_fast: bool):
+        self.engine.set_service_box_inputs(fast_speed=is_fast)
+
+    def _on_pendant_lock_engage(self, pressed: bool):
+        self.engine.set_service_box_inputs(lock_engage=pressed)
+
+    def _on_pendant_lock_disengage(self, pressed: bool):
+        self.engine.set_service_box_inputs(lock_disengage=pressed)
+
+    def _on_pendant_pos0_calibrate(self):
+        self.engine.set_service_box_inputs(pos0_calibrate=True)
+        QTimer.singleShot(200, lambda: self.engine.set_service_box_inputs(pos0_calibrate=False))
+
+    def _on_pendant_clear_alarm(self):
+        self.engine.set_service_box_inputs(clear_alarm=True)
+        QTimer.singleShot(200, lambda: self.engine.set_service_box_inputs(clear_alarm=False))
+
     # =========================================================================
     # 50 FPS 核心循环
     # =========================================================================
@@ -543,7 +587,11 @@ class PitchMainWindow(QMainWindow):
         tmp_tele = self.engine.get_temp_telemetry()
         self.temp_tab.update_telemetry(tmp_tele, self.time_hist)
 
-        # 6. 顶部时钟与抖动更新
+        # 6. 刷新机旁手操盒选项卡
+        sbt = self.engine.get_service_box_telemetry()
+        self.service_box_tab.update_telemetry(sbt, telems, self.time_hist)
+
+        # 7. 顶部时钟与抖动更新
         self.lbl_clock_stat.setText(
             f"时钟: {active_t.timestamp:5.1f}s | 周期: {active_t.cycle_time_ms:4.1f}ms | 抖动: {active_t.jitter_ms:4.1f}ms"
         )

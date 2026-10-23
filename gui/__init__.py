@@ -9,6 +9,7 @@ from gui.blade_tab import BladeTabWidget, BladeFaceTabWidget
 from gui.left_control_panel import LeftControlPanel
 from gui.lubrication_tab import LubricationTabWidget
 from gui.temperature_tab import TemperatureTabWidget
+from gui.service_box_tab import ServiceBoxTabWidget
 
 __all__ = [
     "PitchMainWindow",
@@ -18,4 +19,5 @@ __all__ = [
     "LeftControlPanel",
     "LubricationTabWidget",
     "TemperatureTabWidget",
+    "ServiceBoxTabWidget",
 ]

@@ -188,7 +188,15 @@ class PitchOpcUaBridge:
                         "bHubLubPump1On",
                         "bHubLubPump2On",
                         "udiHeartbeatPlc",
-                        "sControlModeCmd"
+                        "sControlModeCmd",
+                        # 机旁手持操作终端状态遥测
+                        "usiRemoteBoxActiveBlade",
+                        "usiRemoteBoxNSafeBlades",
+                        "bRemoteBoxBladeSafe_A",
+                        "bRemoteBoxBladeSafe_B",
+                        "bRemoteBoxBladeSafe_C",
+                        "bRemoteBoxAlarmStatus",
+                        "bRemoteBoxInControl",
                     ])
                     active_cmd_names = [n for n in candidate_cmds if n in available_names]
                     cmd_nodes = [client.get_node(f"{prefix}{n}") for n in active_cmd_names]
@@ -236,6 +244,19 @@ class PitchOpcUaBridge:
                         ("rTempBearing_degC", lambda fb, st, hb: float(fb.temperature.temp_bearing_deg if fb and fb.temperature else 35.0), ua.VariantType.Float),
                         ("rTempCPU_degC", lambda fb, st, hb: float(fb.temperature.temp_cpu_deg if fb and fb.temperature else 45.0), ua.VariantType.Float),
                         ("bCabinetFanRunning", lambda fb, st, hb: bool(fb.temperature.cabinet_fan if fb and fb.temperature else True), ua.VariantType.Boolean),
+                        # 机旁手持操作终端仿真控制输入写入 (Sim -> PLC)
+                        ("bRemoteBoxConnected", lambda fb, st, hb: bool(self.engine.service_box_inputs.connected if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxBldAchosen", lambda fb, st, hb: bool(self.engine.service_box_inputs.blade_chosen == 'A' if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxBldBchosen", lambda fb, st, hb: bool(self.engine.service_box_inputs.blade_chosen == 'B' if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxBldCchosen", lambda fb, st, hb: bool(self.engine.service_box_inputs.blade_chosen == 'C' if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxFine", lambda fb, st, hb: bool(self.engine.service_box_inputs.fine if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxFeather", lambda fb, st, hb: bool(self.engine.service_box_inputs.feather if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxSlowSpdChosen", lambda fb, st, hb: bool(not self.engine.service_box_inputs.fast_speed if self.engine else True), ua.VariantType.Boolean),
+                        ("bRemoteBoxFastSpdChosen", lambda fb, st, hb: bool(self.engine.service_box_inputs.fast_speed if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxPLockEngage", lambda fb, st, hb: bool(self.engine.service_box_inputs.lock_engage if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxPLockDisengage", lambda fb, st, hb: bool(self.engine.service_box_inputs.lock_disengage if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxPos0Calibrate", lambda fb, st, hb: bool(self.engine.service_box_inputs.pos0_calibrate if self.engine else False), ua.VariantType.Boolean),
+                        ("bRemoteBoxClearCMD", lambda fb, st, hb: bool(self.engine.service_box_inputs.clear_alarm if self.engine else False), ua.VariantType.Boolean),
                     ])
 
                     # 仅保留 PLC 当前符号表中实际存在的变量节点，彻底杜绝 BadNodeIdInvalid
@@ -368,6 +389,18 @@ class PitchOpcUaBridge:
                             self.engine.set_remote_lub_commands(
                                 pump1_on=_safe_bool(cmd_map.get("bHubLubPump1On"), False),
                                 pump2_on=_safe_bool(cmd_map.get("bHubLubPump2On"), False)
+                            )
+                            # 机旁手持操作终端遥测状态解析 (PLC -> Sim)
+                            bld_code = _safe_int(cmd_map.get("usiRemoteBoxActiveBlade"), 1)
+                            act_bld = 'A' if bld_code == 0 else ('C' if bld_code == 2 else 'B')
+                            self.engine.update_service_box_telemetry(
+                                active_blade=act_bld,
+                                n_safe_blades=_safe_int(cmd_map.get("usiRemoteBoxNSafeBlades"), 0),
+                                blade_safe_a=_safe_bool(cmd_map.get("bRemoteBoxBladeSafe_A"), False),
+                                blade_safe_b=_safe_bool(cmd_map.get("bRemoteBoxBladeSafe_B"), False),
+                                blade_safe_c=_safe_bool(cmd_map.get("bRemoteBoxBladeSafe_C"), False),
+                                alarm_status=_safe_bool(cmd_map.get("bRemoteBoxAlarmStatus"), False),
+                                in_control=_safe_bool(cmd_map.get("bRemoteBoxInControl"), False)
                             )
 
                         # --- 步骤 B: 收集仿真内核物理遥测并批量写入 PLC ---
