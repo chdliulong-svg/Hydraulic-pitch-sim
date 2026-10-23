@@ -728,47 +728,7 @@ class PitchMainWindow(QMainWindow):
         layout.addWidget(self.lock_box)
 
         # -------------------------------------------------------------
-        # 3. 液压站动力源 HPU (3台油泵合并 + 25# 旁路常闭电磁阀迟滞控制)
-        # -------------------------------------------------------------
-        hpu_box = QGroupBox(" 液压站动力单元 (HPU 3-Pump & 25# 电磁阀打压/卸荷) ")
-        hpu_layout = QVBoxLayout(hpu_box)
-        hpu_layout.setContentsMargins(10, 10, 10, 10)
-        hpu_layout.setSpacing(7)
-
-        # 状态行 1: 电机与泵规格
-        hpu_row1 = QHBoxLayout()
-        lbl_motor = QLabel("⚡ 电机: 🟢 1450 rpm 常转 | 3泵合并: 64.5 L/min")
-        lbl_motor.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
-        hpu_row1.addWidget(lbl_motor)
-        hpu_layout.addLayout(hpu_row1)
-
-        # 状态行 2: 25# 电磁阀打压/卸荷大横幅状态
-        self.lbl_valve_25_banner = QLabel("⚪ 25# 阀失电 (卸荷待机)：旁路低压直通油箱，单向阀118截止保压")
-        self.lbl_valve_25_banner.setStyleSheet("color: #A8DADC; font-size: 11px; font-weight: bold; background-color: #212836; padding: 5px; border-radius: 4px; border: 1px solid #363A4A;")
-        hpu_layout.addWidget(self.lbl_valve_25_banner)
-
-        # 状态行 3: 传感器 107 阈值判定说明
-        self.lbl_hpu_hyster = QLabel("母管 107 压力: 260.0 bar | 迟滞逻辑: [任一 < 235 bar 打压 | 三面均 > 265 bar 停压]")
-        self.lbl_hpu_hyster.setStyleSheet("color: #FFB703; font-size: 11px; font-family: Consolas;")
-        hpu_layout.addWidget(self.lbl_hpu_hyster)
-
-        # 状态行 4: 实时 P 口压力与供油流量
-        hpu_row4 = QHBoxLayout()
-        self.lbl_hpu_p_supply = QLabel("P口压力: 2.5 bar")
-        self.lbl_hpu_p_supply.setStyleSheet("color: #4CC9F0; font-size: 11px; font-weight: bold; font-family: Consolas;")
-        self.lbl_hpu_q_actual = QLabel("供油流量: 0.0 L/min")
-        self.lbl_hpu_q_actual.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; font-family: Consolas;")
-        lbl_hpu_rv = QLabel("溢流保护: 280 bar")
-        lbl_hpu_rv.setStyleSheet("color: #EF233C; font-size: 11px; font-family: Consolas;")
-        hpu_row4.addWidget(self.lbl_hpu_p_supply)
-        hpu_row4.addWidget(self.lbl_hpu_q_actual)
-        hpu_row4.addWidget(lbl_hpu_rv)
-        hpu_layout.addLayout(hpu_row4)
-
-        layout.addWidget(hpu_box)
-
-        # -------------------------------------------------------------
-        # 4. 重载工业急停与顺桨调速
+        # 3. 重载工业急停与顺桨调速
         # -------------------------------------------------------------
         self.safe_box = QGroupBox(" 应急顺桨安全回路 (Fail-Safe Feathering) ")
         safe_layout = QVBoxLayout(self.safe_box)
@@ -1342,19 +1302,7 @@ class PitchMainWindow(QMainWindow):
             self.lbl_lock_warning.setText(f"✔ {self.active_blade}面变桨锁处于解锁状态，主油缸允许正常动作")
             self.lbl_lock_warning.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; background-color: #172B23; padding: 4px; border-radius: 4px;")
 
-        # 4. 液压站 HPU 与 25# 阀状态联动更新
-        if active_t.valve_25_state:
-            self.lbl_valve_25_banner.setText(f"🟢 25# 阀得电 (打压建压中)：3泵供油 {active_t.q_hpu_lpm:.1f} L/min 充入母管 (任一 107 < 235 bar)")
-            self.lbl_valve_25_banner.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; background-color: #162E25; padding: 6px; border-radius: 4px; border: 1.5px solid #06D6A0;")
-        else:
-            self.lbl_valve_25_banner.setText("⚪ 25# 阀失电 (卸荷待机)：旁路低阻直通油箱，单向阀118截止保压 (三面 107 均 > 265 bar)")
-            self.lbl_valve_25_banner.setStyleSheet("color: #A8DADC; font-size: 11px; font-weight: bold; background-color: #212836; padding: 6px; border-radius: 4px; border: 1px solid #363A4A;")
-
-        self.lbl_hpu_hyster.setText(f"母管 107 压力: {active_t.p_acc_bar:5.1f} bar | 逻辑: [任一 < 235 bar 打压 | 三面均 > 265 bar 停压]")
-        self.lbl_hpu_p_supply.setText(f"P口压力: {active_t.p_supply_bar:5.1f} bar")
-        self.lbl_hpu_q_actual.setText(f"供油流量: {active_t.q_hpu_lpm:4.1f} L/min")
-
-        # 5. 左侧遥测读数 (当前活动面)
+        # 4. 遥测读数 (当前活动面)
         self.tele_labels["disp"].setText(f"{active_t.displacement_mm:5.1f} mm")
         self.tele_labels["vel"].setText(f"{active_t.velocity_mps*1000.0:+5.1f} mm/s")
         self.tele_labels["u_v"].setText(f"{u_outputs[self.active_blade]:+5.2f} V")
