@@ -111,58 +111,81 @@ class HydraulicSchematicWidget(QWidget):
             )
 
         # 2. 坐标布局
-        start_x = 90
-        cyl_w = max(200, min(240, int((w - 320) / 2)))
+        start_x = 85
+        cyl_w = max(180, min(220, int((w - 340) / 2)))
         cyl_h = 40
         c1_y = 90
         c2_y = 155
 
+        # 活塞行程与位置参数 (以活塞左侧为基准)
+        travel_max_px = cyl_w - 55
+        piston_min_x = start_x + 10
+        piston_w = 16
         ratio = max(0.0, min(1.0, self.stroke_mm / self.stroke_max))
-        piston_x = start_x + 10 + ratio * (cyl_w - 50)
+        travel_px = ratio * travel_max_px
+        piston_x = piston_min_x + travel_px
+
+        # 活塞杆与连杆参数
+        # 活塞完全收回(stroke=0)时，活塞杆伸出缸头前端面基准余量 (stickout_min)，确保连杆绝不缩进油缸内部
+        stickout_min = 28
+        # 双杆机械同步连杆 X 坐标
+        link_x = start_x + cyl_w + stickout_min + travel_px
+        rod_end_x = link_x
 
         col_A = self._p_to_color(self.p_A_bar)
         col_B = self._p_to_color(self.p_B_bar)
 
         # 绘制主缸 1 与主缸 2
         for cy, name in [(c1_y, "主油缸 1"), (c2_y, "主油缸 2")]:
+            # A腔油液 (无杆腔，从缸底至活塞左端面)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(col_A))
-            painter.drawRect(int(start_x + 3), int(cy + 3), int(piston_x - start_x - 3), int(cyl_h - 6))
+            painter.drawRect(int(start_x + 5), int(cy + 3), int(piston_x - start_x - 5), int(cyl_h - 6))
 
+            # B腔油液 (有杆腔，从活塞右端面至缸头内端面)
             painter.setBrush(QBrush(col_B))
-            painter.drawRect(int(piston_x + 16), int(cy + 3), int(start_x + cyl_w - piston_x - 19), int(cyl_h - 6))
+            b_chamber_end = start_x + cyl_w - 8
+            painter.drawRect(int(piston_x + piston_w), int(cy + 3), int(b_chamber_end - (piston_x + piston_w)), int(cyl_h - 6))
 
             # 活塞
-            piston_grad = QLinearGradient(piston_x, cy, piston_x + 16, cy)
+            piston_grad = QLinearGradient(piston_x, cy, piston_x + piston_w, cy)
             piston_grad.setColorAt(0.0, QColor("#8D99AE"))
             piston_grad.setColorAt(0.5, QColor("#EDF2F4"))
             piston_grad.setColorAt(1.0, QColor("#6C757D"))
             painter.setBrush(QBrush(piston_grad))
             painter.setPen(QPen(QColor("#EDF2F4"), 1))
-            painter.drawRoundedRect(int(piston_x), int(cy + 2), 16, int(cyl_h - 4), 2, 2)
+            painter.drawRoundedRect(int(piston_x), int(cy + 2), piston_w, int(cyl_h - 4), 2, 2)
 
-            # 活塞杆
-            rod_len = (cyl_w - 40)
-            rod_end_x = piston_x + 16 + rod_len
+            # 活塞杆 (穿过有杆腔与缸头端盖，延伸至连杆)
             rod_grad = QLinearGradient(0, cy + 12, 0, cy + cyl_h - 12)
             rod_grad.setColorAt(0.0, QColor("#E0E1DD"))
             rod_grad.setColorAt(0.5, QColor("#FFFFFF"))
             rod_grad.setColorAt(1.0, QColor("#ADB5BD"))
             painter.setBrush(QBrush(rod_grad))
-            painter.drawRect(int(piston_x + 16), int(cy + 12), int(rod_end_x - (piston_x + 16)), int(cyl_h - 24))
+            painter.setPen(QPen(QColor("#ADB5BD"), 1))
+            painter.drawRect(int(piston_x + piston_w), int(cy + 12), int(rod_end_x - (piston_x + piston_w)), int(cyl_h - 24))
 
-            # 缸筒外壳
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(QColor("#CED4DA"), 2.5))
-            painter.drawRect(int(start_x), int(cy), int(cyl_w), int(cyl_h))
+            # 缸筒外壳与导向端盖 (活塞杆从端盖中心穿出)
+            painter.setPen(QPen(QColor("#CED4DA"), 2.2))
+            painter.setBrush(QBrush(QColor("#3A3D4D")))
+            # 缸底后盖
+            painter.drawRect(int(start_x), int(cy), 5, int(cyl_h))
+            # 上下缸筒筒壁
+            painter.drawLine(int(start_x + 5), int(cy), int(start_x + cyl_w), int(cy))
+            painter.drawLine(int(start_x + 5), int(cy + cyl_h), int(start_x + cyl_w), int(cy + cyl_h))
+            # 缸头前端导向套 (上下端环，留出活塞杆导向滑动孔)
+            painter.drawRect(int(start_x + cyl_w - 8), int(cy), 8, 12)
+            painter.drawRect(int(start_x + cyl_w - 8), int(cy + cyl_h - 12), 8, 12)
+            # 缸头右端面 (上下封口)
+            painter.drawLine(int(start_x + cyl_w), int(cy), int(start_x + cyl_w), int(cy + 12))
+            painter.drawLine(int(start_x + cyl_w), int(cy + cyl_h - 12), int(start_x + cyl_w), int(cy + cyl_h))
 
             # 标签
             painter.setPen(QColor("#A8DADC"))
             painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-            painter.drawText(18, cy + 25, name)
+            painter.drawText(16, cy + 25, name)
 
         # 双杆机械同步连杆 (带有机械锁孔)
-        link_x = piston_x + 16 + (cyl_w - 40)
         painter.setPen(QPen(QColor("#FFD166"), 6))
         painter.drawLine(int(link_x), int(c1_y + 20), int(link_x), int(c2_y + 20))
 
@@ -178,7 +201,7 @@ class HydraulicSchematicWidget(QWidget):
         # -------------------------------------------------------------
         # 3. 动态绘制变桨机械锁紧装置与锁销动作
         # -------------------------------------------------------------
-        lock_stand_x = start_x + 10 + (cyl_w - 50) + 16 + (cyl_w - 40) # 90°顺桨时连杆所在固定位置
+        lock_stand_x = start_x + cyl_w + stickout_min + travel_max_px  # 90°顺桨时连杆所在固定位置
         lock_box_x = int(lock_stand_x - 14)
         lock_box_y = c1_y - 44
         lock_box_w = 28
@@ -231,7 +254,7 @@ class HydraulicSchematicWidget(QWidget):
         # -------------------------------------------------------------
         # 4. 蓄能器组
         # -------------------------------------------------------------
-        acc_x = max(int(lock_box_x + 120), w - 105)
+        acc_x = max(int(lock_box_x + 95), w - 105)
         acc_y = 65
         painter.setPen(QPen(QColor("#FFD166"), 2))
         painter.setBrush(QBrush(QColor("#2B2D42")))
