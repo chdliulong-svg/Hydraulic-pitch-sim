@@ -208,7 +208,9 @@ class SoftRealtimePitchEngine:
                     self.valve_25_state = False
 
                 if self.valve_25_state:
-                    self.P_supply = min(self.P_set_hpu_relief, p_max_acc + 1.0e5)
+                    # 打压时供油压力高于蓄能器母管压力 (单向阀开启压差约 2 bar)
+                    p_supply_calc = min(self.P_set_hpu_relief / 1.0e5, p_max_acc + 2.0)
+                    self.P_supply = p_supply_calc * 1.0e5
                     self.Q_hpu_actual = self.Q_pump_total
                     # 计算需要补油受压的机构面 (低于 265.0 bar 者受油)
                     charging_blades = [k for k in self.blades if p_acc_bars[k] < 265.2]

@@ -177,7 +177,7 @@ class PitchHydraulicSystem:
         if self.valve_25_state:
             # 25# 得电打压: 经单向阀 118 压入蓄能器母管
             q_pump_avail = self.Q_pump_total if q_pump_in is None else float(q_pump_in)
-            self.P_supply = min(self.P_set_hpu_relief, self.P_acc + 1.0e5)
+            self.P_supply = min(self.P_set_hpu_relief, self.P_acc + 2.0e5)
             # 液压站回路溢流阀 (280 bar) 泄压保护
             q_rv_hpu = self.K_rv_hpu * max(0.0, self.P_supply - self.P_set_hpu_relief)
             Q_118 = max(0.0, q_pump_avail - q_rv_hpu)
