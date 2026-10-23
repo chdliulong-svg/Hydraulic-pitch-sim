@@ -18,7 +18,7 @@ from pitch_opcua_bridge import PitchOpcUaBridge
 from pitch_conn_dialog import ConnectionSettingsDialog, load_connection_config
 
 from gui.left_control_panel import LeftControlPanel
-from gui.blade_face_tab import BladeFaceTabWidget
+from gui.blade_tab import BladeTabWidget, BladeFaceTabWidget
 from gui.lubrication_tab import LubricationTabWidget
 from gui.temperature_tab import TemperatureTabWidget
 
@@ -186,7 +186,7 @@ class PitchMainWindow(QMainWindow):
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.left_panel = LeftControlPanel()
-        self.left_panel.faceSelected.connect(self._select_face)
+        self.left_panel.bladeSelected.connect(self._select_blade)
         self.left_panel.syncChanged.connect(self._on_sync_changed)
         self.left_panel.autoModeChanged.connect(self._set_mode)
         self.left_panel.targetChanged.connect(self._on_target_changed)
@@ -208,11 +208,12 @@ class PitchMainWindow(QMainWindow):
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
         # Tabs 0, 1, 2: 叶片 A, B, C
-        self.face_tabs = {}
+        self.blade_tabs = {}
         for k in self.blades:
-            t = BladeFaceTabWidget(face_name=k)
-            self.face_tabs[k] = t
+            t = BladeTabWidget(blade_id=k)
+            self.blade_tabs[k] = t
             self.tab_widget.addTab(t, f"叶片 {k}")
+        self.face_tabs = self.blade_tabs  # 兼容旧属性别名
 
         # Tab 3: 集中润滑系统
         self.lub_tab = LubricationTabWidget(buf_size=self.buf_size)
@@ -352,21 +353,24 @@ class PitchMainWindow(QMainWindow):
             self.lbl_auth_status.setStyleSheet("color: #FFB703; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #2B2317; border-radius: 4px; border: 1px solid #5A4015;")
             self.left_panel.set_remote_authority(True)
 
-    def _select_face(self, key):
+    def _select_blade(self, key):
         self.active_blade = key
         idx = self.blades.index(key)
         if self.tab_widget.currentIndex() != idx:
             self.tab_widget.setCurrentIndex(idx)
-        self.left_panel.update_face_buttons_style(self.active_blade, self.is_sync_all)
+        self.left_panel.update_blade_buttons_style(self.active_blade, self.is_sync_all)
         self._sync_left_controls_to_active_blade()
+
+    def _select_face(self, key):
+        self._select_blade(key)
 
     def _on_tab_changed(self, idx):
         if 0 <= idx < len(self.blades):
             self.active_blade = self.blades[idx]
-            self.left_panel.update_face_buttons_style(self.active_blade, self.is_sync_all)
+            self.left_panel.update_blade_buttons_style(self.active_blade, self.is_sync_all)
             self._sync_left_controls_to_active_blade()
         else:
-            for b in self.left_panel.btn_faces.values():
+            for b in self.left_panel.btn_blades.values():
                 b.setChecked(False)
                 b.setStyleSheet("background-color: #21232C; color: #8D99AE; border: 1px solid #363A4A; border-radius: 4px;")
 
@@ -378,7 +382,7 @@ class PitchMainWindow(QMainWindow):
             for k in self.blades:
                 self.target_pos_mm[k] = cur_t
                 self.manual_voltage[k] = cur_v
-        self.left_panel.update_face_buttons_style(self.active_blade, self.is_sync_all)
+        self.left_panel.update_blade_buttons_style(self.active_blade, self.is_sync_all)
 
     def _sync_left_controls_to_active_blade(self):
         k = self.active_blade
@@ -510,7 +514,7 @@ class PitchMainWindow(QMainWindow):
             self.pSupply_hist[k][-1] = t_k.p_supply_bar
 
             # 刷新对应叶片选项卡
-            self.face_tabs[k].update_telemetry(
+            self.blade_tabs[k].update_telemetry(
                 t_k, self.is_feathering[k],
                 self.time_hist, self.target_hist[k], self.stroke_hist[k],
                 self.pA_hist[k], self.pB_hist[k], self.pacc_hist[k], self.pSupply_hist[k]

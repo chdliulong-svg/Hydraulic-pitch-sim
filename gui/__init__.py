@@ -5,7 +5,7 @@
 
 from gui.main_window import PitchMainWindow
 from gui.schematic_widget import HydraulicSchematicWidget
-from gui.blade_face_tab import BladeFaceTabWidget
+from gui.blade_tab import BladeTabWidget, BladeFaceTabWidget
 from gui.left_control_panel import LeftControlPanel
 from gui.lubrication_tab import LubricationTabWidget
 from gui.temperature_tab import TemperatureTabWidget
@@ -13,6 +13,7 @@ from gui.temperature_tab import TemperatureTabWidget
 __all__ = [
     "PitchMainWindow",
     "HydraulicSchematicWidget",
+    "BladeTabWidget",
     "BladeFaceTabWidget",
     "LeftControlPanel",
     "LubricationTabWidget",

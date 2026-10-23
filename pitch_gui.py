@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication
 from gui import (
     PitchMainWindow,
     HydraulicSchematicWidget,
+    BladeTabWidget,
     BladeFaceTabWidget,
     LeftControlPanel,
     LubricationTabWidget,
@@ -21,6 +22,7 @@ from gui import (
 __all__ = [
     "PitchMainWindow",
     "HydraulicSchematicWidget",
+    "BladeTabWidget",
     "BladeFaceTabWidget",
     "LeftControlPanel",
     "LubricationTabWidget",

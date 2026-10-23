@@ -13,9 +13,10 @@ from PyQt6.QtCore import Qt
 class HydraulicSchematicWidget(QWidget):
     """自定义高精度动态机械/液压拓扑渲染画布"""
 
-    def __init__(self, face_name="A", parent=None):
+    def __init__(self, blade_id="A", parent=None, **kwargs):
         super().__init__(parent)
-        self.face_name = face_name
+        self.blade_id = kwargs.get("face_name", blade_id)
+        self.face_name = self.blade_id  # 兼容旧属性
         self.setFixedHeight(285)
         self.setStyleSheet("background-color: #14151B; border-radius: 8px;")
 
@@ -89,7 +90,7 @@ class HydraulicSchematicWidget(QWidget):
         painter.drawRoundedRect(12, 6, max(600, w - 24), 26, 4, 4)
 
         painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        tag = f"【叶片 {self.face_name}】"
+        tag = f"【叶片 {self.blade_id}】"
         if self.is_locked:
             painter.setPen(QColor("#FFB703"))
             painter.drawText(

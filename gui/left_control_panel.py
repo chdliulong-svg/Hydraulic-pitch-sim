@@ -15,7 +15,8 @@ class LeftControlPanel(QWidget):
     """左侧控制与遥测面板"""
 
     # 外部交互信号
-    faceSelected = pyqtSignal(str)
+    bladeSelected = pyqtSignal(str)
+    faceSelected = bladeSelected  # 兼容旧版信号别名
     syncChanged = pyqtSignal(bool)
     autoModeChanged = pyqtSignal(bool)
     targetChanged = pyqtSignal(float)
@@ -29,7 +30,8 @@ class LeftControlPanel(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background-color: transparent;")
 
-        self.active_face = 'A'
+        self.active_blade = 'A'
+        self.active_face = self.active_blade  # 兼容旧属性
         self.is_sync = False
         self.is_auto = True
 
@@ -41,20 +43,22 @@ class LeftControlPanel(QWidget):
         layout.setSpacing(8)
 
         # 1. 叶片选择
-        face_box = QGroupBox(" 叶片选择 ")
-        face_layout = QHBoxLayout(face_box)
-        face_layout.setContentsMargins(8, 6, 8, 6)
-        face_layout.setSpacing(6)
+        blade_box = QGroupBox(" 叶片选择 ")
+        blade_layout = QHBoxLayout(blade_box)
+        blade_layout.setContentsMargins(8, 6, 8, 6)
+        blade_layout.setSpacing(6)
 
-        self.btn_faces = {}
+        self.btn_blades = {}
         for k, text in [('A', '叶片 A'), ('B', '叶片 B'), ('C', '叶片 C')]:
             b = QPushButton(text)
             b.setCheckable(True)
             b.setFixedHeight(28)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.clicked.connect(lambda _, key=k: self.faceSelected.emit(key))
-            self.btn_faces[k] = b
-            face_layout.addWidget(b)
+            b.clicked.connect(lambda _, key=k: self.bladeSelected.emit(key))
+            self.btn_blades[k] = b
+            blade_layout.addWidget(b)
+
+        self.btn_faces = self.btn_blades  # 兼容旧属性别名
 
         self.chk_sync_all = QCheckBox("三叶片同步")
         self.chk_sync_all.setStyleSheet("""
@@ -77,8 +81,8 @@ class LeftControlPanel(QWidget):
             }
         """)
         self.chk_sync_all.stateChanged.connect(lambda state: self.syncChanged.emit(bool(state)))
-        face_layout.addWidget(self.chk_sync_all)
-        layout.addWidget(face_box)
+        blade_layout.addWidget(self.chk_sync_all)
+        layout.addWidget(blade_box)
 
         # 2. 运动控制
         self.motion_box = QGroupBox(" 运动控制 ")
@@ -311,27 +315,32 @@ class LeftControlPanel(QWidget):
         layout.addWidget(tele_box)
         layout.addStretch()
 
-        self.update_face_buttons_style('A', False)
+        self.update_blade_buttons_style('A', False)
         self.update_mode_styles(True)
         self.update_feather_button_style(False)
         self.update_lock_buttons_style(False)
         self.update_motor_button_style(True, 1450.0)
 
-    def update_face_buttons_style(self, active_face: str, is_sync: bool):
-        self.active_face = active_face
+    def update_blade_buttons_style(self, active_blade: str, is_sync: bool):
+        self.active_blade = active_blade
+        self.active_face = active_blade  # 兼容旧属性
         self.is_sync = is_sync
         self.chk_sync_all.setChecked(is_sync)
-        for k, btn in self.btn_faces.items():
+        for k, btn in self.btn_blades.items():
             if is_sync:
                 btn.setChecked(True)
                 btn.setStyleSheet("background-color: #3A405A; color: #FFD166; font-weight: bold; border: 1px solid #FFD166; border-radius: 4px; font-size: 11px;")
             else:
-                is_cur = (k == active_face)
+                is_cur = (k == active_blade)
                 btn.setChecked(is_cur)
                 if is_cur:
                     btn.setStyleSheet("background-color: #4CC9F0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 11px;")
                 else:
                     btn.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 11px;")
+
+    # 兼容旧方法名
+    def update_face_buttons_style(self, active_face: str, is_sync: bool):
+        self.update_blade_buttons_style(active_face, is_sync)
 
     def update_mode_styles(self, is_auto: bool):
         self.is_auto = is_auto
