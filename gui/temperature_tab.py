@@ -24,11 +24,10 @@ class TemperatureTabWidget(QWidget):
         super().__init__(parent)
         self.buf_size = buf_size
 
-        # 示波器历史缓存 (电气柜温、轮毂环温、轴承、CPU)
+        # 示波器历史缓存 (电气柜温、轮毂环温、轴承)
         self.temp_cab_hist = np.full(self.buf_size, 32.0)
         self.temp_hub_hist = np.full(self.buf_size, 25.0)
         self.temp_bearing_hist = np.full(self.buf_size, 35.0)
-        self.temp_cpu_hist = np.full(self.buf_size, 45.0)
 
         self._init_ui()
 
@@ -69,7 +68,7 @@ class TemperatureTabWidget(QWidget):
         title_vbox.setSpacing(2)
         b_title = QLabel("6MW 轮毂电气与轴承热力学/温度监控仿真")
         b_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #EDF2F4;")
-        b_sub = QLabel("电气柜温 · 轮毂环温 · 变桨轴承温 · 发电机气隙温 · 控制器CPU核心温")
+        b_sub = QLabel("电气柜温 · 轮毂环温 · 变桨轴承温 · 发电机气隙温")
         b_sub.setStyleSheet("font-size: 11px; color: #8D99AE;")
         title_vbox.addWidget(b_title)
         title_vbox.addWidget(b_sub)
@@ -163,7 +162,7 @@ class TemperatureTabWidget(QWidget):
 
             return f, val_lbl, stat_lbl, pbar, sub_lbl
 
-        # 5 大核心测点卡片
+        # 4 大核心测点卡片
         (c1, self.lbl_temp_cab, self.lbl_stat_cab, self.bar_temp_cab, self.lbl_sub_cab) = _make_temp_card("1. 变桨控制电气柜温", "pac.io.ai.tempCabinet")
         self.lbl_sub_cab.setText("门限: -10°C 柜内低温 | 60°C 柜内高温 (风扇连锁)")
         grid.addWidget(c1, 0, 0)
@@ -172,19 +171,15 @@ class TemperatureTabWidget(QWidget):
         self.lbl_sub_hub.setText("门限: -25°C 轮毂低温 | 55°C 轮毂高温")
         grid.addWidget(c2, 0, 1)
 
-        (c3, self.lbl_temp_cpu, self.lbl_stat_cpu, self.bar_temp_cpu, self.lbl_sub_cpu) = _make_temp_card("3. 控制器 CPU 核心温", "pac.io.ai.tempCPU")
-        self.lbl_sub_cpu.setText("门限: 80°C CPU 高温告警 (芯片热保护)")
-        grid.addWidget(c3, 0, 2)
-
-        (c4, self.lbl_temp_bearing, self.lbl_stat_bearing, self.bar_temp_bearing, self.lbl_sub_bearing) = _make_temp_card("4. 变桨/主轴承温度", "pac.io.ai.tempBearing")
+        (c4, self.lbl_temp_bearing, self.lbl_stat_bearing, self.bar_temp_bearing, self.lbl_sub_bearing) = _make_temp_card("3. 变桨/主轴承温度", "pac.io.ai.tempBearing")
         self.lbl_sub_bearing.setText("工况: 双泵注脂润滑散热耦合")
         grid.addWidget(c4, 1, 0)
 
-        (c5, self.lbl_temp_airgap, self.lbl_stat_airgap, self.bar_temp_airgap, self.lbl_sub_airgap) = _make_temp_card("5. 发电机气隙温度", "pac.io.ai.tempAirgab")
+        (c5, self.lbl_temp_airgap, self.lbl_stat_airgap, self.bar_temp_airgap, self.lbl_sub_airgap) = _make_temp_card("4. 发电机气隙温度", "pac.io.ai.tempAirgab")
         self.lbl_sub_airgap.setText("工况: 机舱气隙热耗散平衡")
         grid.addWidget(c5, 1, 1)
 
-        # 第 6 块卡片: 温控与传感器回路健康概览
+        # 第 5 块卡片: 温控与传感器回路健康概览
         c6 = QFrame()
         c6.setStyleSheet(card_style)
         c6_layout = QVBoxLayout(c6)
@@ -192,7 +187,7 @@ class TemperatureTabWidget(QWidget):
         c6_layout.setSpacing(6)
 
         c6_top = QHBoxLayout()
-        c6_title = QLabel("6. 温控与传感器回路概况")
+        c6_title = QLabel("5. 温控与传感器回路概况")
         c6_title.setStyleSheet("font-size: 12px; font-weight: bold; color: #EDF2F4;")
         c6_tag = QLabel("pac.io.status")
         c6_tag.setStyleSheet("font-size: 10px; color: #8D99AE; font-family: Consolas;")
@@ -203,7 +198,7 @@ class TemperatureTabWidget(QWidget):
 
         self.lbl_ov_fan = QLabel("• 散热风扇: 🟢 运行中 (温控自启)")
         self.lbl_ov_fan.setStyleSheet("color: #06D6A0; font-size: 11px; font-family: Consolas;")
-        self.lbl_ov_pt100 = QLabel("• PT100回路: 🟢 5通道测量正常")
+        self.lbl_ov_pt100 = QLabel("• PT100回路: 🟢 4通道测量正常")
         self.lbl_ov_pt100.setStyleSheet("color: #06D6A0; font-size: 11px; font-family: Consolas;")
         self.lbl_ov_alarm = QLabel("• 温度告警: 🟢 无任何温度越限")
         self.lbl_ov_alarm.setStyleSheet("color: #06D6A0; font-size: 11px; font-family: Consolas;")
@@ -212,7 +207,7 @@ class TemperatureTabWidget(QWidget):
         c6_layout.addWidget(self.lbl_ov_pt100)
         c6_layout.addWidget(self.lbl_ov_alarm)
         c6_layout.addStretch()
-        grid.addWidget(c6, 1, 2)
+        grid.addWidget(c6, 0, 2, 2, 1)
 
         page_layout.addLayout(grid)
 
@@ -300,7 +295,7 @@ class TemperatureTabWidget(QWidget):
         tp.setLabel('left', '温度 (°C)', color='#FFD166')
         tp.setLabel('bottom', '相对时间 (s)', color='#A8DADC')
         tp.setYRange(-35, 90, padding=0.05)
-        tp.addLegend(offset=(10, 10), brush="#1E202B", colCount=4)
+        tp.addLegend(offset=(10, 10), brush="#1E202B", colCount=3)
 
         tp.addLine(y=80, pen=pg.mkPen(color='#D90429', width=1.0, style=Qt.PenStyle.DashLine))
         tp.addLine(y=60, pen=pg.mkPen(color='#F72585', width=1.0, style=Qt.PenStyle.DotLine))
@@ -309,7 +304,6 @@ class TemperatureTabWidget(QWidget):
         self.curve_temp_cab = tp.plot(pen=pg.mkPen(color='#4CC9F0', width=2), name="电气柜温")
         self.curve_temp_hub = tp.plot(pen=pg.mkPen(color='#06D6A0', width=2), name="轮毂环温")
         self.curve_temp_bearing = tp.plot(pen=pg.mkPen(color='#B5179E', width=2), name="变桨轴承")
-        self.curve_temp_cpu = tp.plot(pen=pg.mkPen(color='#EF233C', width=2, style=Qt.PenStyle.DashLine), name="CPU核心")
 
         scope_layout.addWidget(plot_widget)
         page_layout.addWidget(scope_box)
@@ -360,7 +354,6 @@ class TemperatureTabWidget(QWidget):
 
         _render_val(self.lbl_temp_cab, self.lbl_stat_cab, self.bar_temp_cab, tmp.temp_cabinet_deg, -10.0, 60.0)
         _render_val(self.lbl_temp_hub, self.lbl_stat_hub, self.bar_temp_hub, tmp.temp_hub_deg, -25.0, 55.0)
-        _render_val(self.lbl_temp_cpu, self.lbl_stat_cpu, self.bar_temp_cpu, tmp.temp_cpu_deg, -10.0, 80.0)
         _render_val(self.lbl_temp_bearing, self.lbl_stat_bearing, self.bar_temp_bearing, tmp.temp_bearing_deg, -20.0, 65.0)
         _render_val(self.lbl_temp_airgap, self.lbl_stat_airgap, self.bar_temp_airgap, tmp.temp_airgap_deg, -20.0, 65.0)
 
@@ -400,10 +393,10 @@ class TemperatureTabWidget(QWidget):
             self.lbl_ov_pt100.setText("• PT100回路: ⚡ 存在断线开路故障")
             self.lbl_ov_pt100.setStyleSheet("color: #EF233C; font-size: 11px; font-family: Consolas;")
         else:
-            self.lbl_ov_pt100.setText("• PT100回路: 🟢 5通道测量正常")
+            self.lbl_ov_pt100.setText("• PT100回路: 🟢 4通道测量正常")
             self.lbl_ov_pt100.setStyleSheet("color: #06D6A0; font-size: 11px; font-family: Consolas;")
 
-        has_alarm = tmp.alarm_cab_high or tmp.alarm_cab_low or tmp.alarm_hub_high or tmp.alarm_hub_low or tmp.alarm_cpu_high
+        has_alarm = tmp.alarm_cab_high or tmp.alarm_cab_low or tmp.alarm_hub_high or tmp.alarm_hub_low
         if has_alarm:
             self.lbl_ov_alarm.setText("• 温度告警: 🔴 存在温度越限超标")
             self.lbl_ov_alarm.setStyleSheet("color: #EF233C; font-size: 11px; font-family: Consolas;")
@@ -422,10 +415,7 @@ class TemperatureTabWidget(QWidget):
         self.temp_hub_hist[-1] = safe_hub
         self.temp_bearing_hist = np.roll(self.temp_bearing_hist, -1)
         self.temp_bearing_hist[-1] = safe_bearing
-        self.temp_cpu_hist = np.roll(self.temp_cpu_hist, -1)
-        self.temp_cpu_hist[-1] = tmp.temp_cpu_deg
 
         self.curve_temp_cab.setData(time_hist, self.temp_cab_hist)
         self.curve_temp_hub.setData(time_hist, self.temp_hub_hist)
         self.curve_temp_bearing.setData(time_hist, self.temp_bearing_hist)
-        self.curve_temp_cpu.setData(time_hist, self.temp_cpu_hist)

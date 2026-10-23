@@ -31,7 +31,6 @@ class TemperatureTelemetry:
     temp_cabinet_deg: float = 32.0      # PAC 变桨电气柜内部温度 (-20 ~ +60°C)
     temp_airgap_deg: float = 38.0       # 发电机气隙温度
     temp_bearing_deg: float = 35.0      # 变桨轴承 / 主轴承温度
-    temp_cpu_deg: float = 45.0          # PAC 控制器 CPU 核心温度
     temp_oil_deg: float = 0.0           # 保留字段 (已移除模拟)
 
     # 开关量状态
@@ -42,7 +41,6 @@ class TemperatureTelemetry:
     alarm_cab_low: bool = False         # 柜温超下限告警 (< -10°C)
     alarm_hub_high: bool = False        # 轮毂超上限告警 (> 55°C)
     alarm_hub_low: bool = False         # 轮毂超下限告警 (< -25°C)
-    alarm_cpu_high: bool = False        # CPU 超上限告警 (> 80°C)
     sensor_fault_open: bool = False     # PT100 传感器断线故障
 
 
@@ -61,7 +59,6 @@ class TemperatureSystemSim:
         self.t_cab = 32.0
         self.t_airgap = 38.0
         self.t_bearing = 35.0
-        self.t_cpu = 45.0
 
         # 热容量与时间常数 (分钟级热惯性在仿真中适度加速以方便调试观察)
         self.tau_cab_heat = 25.0        # 柜内蓄热时间常数 (s)
@@ -117,47 +114,39 @@ class TemperatureSystemSim:
         tau_cab = self.tau_cab_cool if self.cabinet_fan else self.tau_cab_heat
         self.t_cab += (target_cab - self.t_cab) * (self.dt / max(1.0, tau_cab))
 
-        # 3. PLC CPU 核心温度模型 (CPU 高于柜内温度 12 ~ 15°C)
-        target_cpu = self.t_cab + 13.5
-        self.t_cpu += (target_cpu - self.t_cpu) * (self.dt / 5.0)
-
-        # 4. 发电机气隙温度模型 (稳态在 36~45°C)
+        # 3. 发电机气隙温度模型 (稳态在 36~45°C)
         target_airgap = self.t_hub + 14.0 + (5.0 if valve_25_charging else 0.0)
         self.t_airgap += (target_airgap - self.t_airgap) * (self.dt / 20.0)
 
-        # 5. 变桨/主轴承温度模型
+        # 4. 变桨/主轴承温度模型
         # 变桨动作时摩擦做功产热，若润滑泵运行则散热润滑良好
         lub_friction = 0.5 if lub_pumps_on else 2.5
         bearing_heat = 8.0 + cyl_motion_intensity * 10.0 * lub_friction
         target_bearing = self.t_hub + bearing_heat
         self.t_bearing += (target_bearing - self.t_bearing) * (self.dt / self.tau_bearing)
 
-        # 6. 告警阈值计算 (对照 CODESYS FB_AlarmConfigLoader / PRG_pv2csv)
+        # 5. 告警阈值计算 (对照 CODESYS FB_AlarmConfigLoader / PRG_pv2csv)
         alarm_cab_high = (self.t_cab >= 60.0)
         alarm_cab_low = (self.t_cab <= -10.0)
         alarm_hub_high = (self.t_hub >= 55.0)
         alarm_hub_low = (self.t_hub <= -25.0)
-        alarm_cpu_high = (self.t_cpu >= 80.0)
 
         # 输出温度遥测数值 (若断线故障，输出 -999.0 代表 Open Line)
         out_hub = -999.0 if self.fault_pt100_open else round(self.t_hub, 2)
         out_cab = -999.0 if self.fault_pt100_open else round(self.t_cab, 2)
         out_airgap = -999.0 if self.fault_pt100_open else round(self.t_airgap, 2)
         out_bearing = -999.0 if self.fault_pt100_open else round(self.t_bearing, 2)
-        out_cpu = round(self.t_cpu, 2)
 
         return TemperatureTelemetry(
             temp_hub_deg=out_hub,
             temp_cabinet_deg=out_cab,
             temp_airgap_deg=out_airgap,
             temp_bearing_deg=out_bearing,
-            temp_cpu_deg=out_cpu,
             temp_oil_deg=0.0,
             cabinet_fan=self.cabinet_fan,
             alarm_cab_high=alarm_cab_high,
             alarm_cab_low=alarm_cab_low,
             alarm_hub_high=alarm_hub_high,
             alarm_hub_low=alarm_hub_low,
-            alarm_cpu_high=alarm_cpu_high,
             sensor_fault_open=self.fault_pt100_open
         )
