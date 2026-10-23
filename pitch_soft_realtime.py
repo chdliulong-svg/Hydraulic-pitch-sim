@@ -111,7 +111,8 @@ class PitchTelemetryData:
     valve_25_state: bool = False # 25# 电磁阀状态 (True=得电打压, False=失电卸荷)
     p_supply_bar: float = 2.5    # P口/泵口供油压力 (bar)
     q_hpu_lpm: float = 0.0       # 泵送向主回路的实际流量 (L/min)
-    motor_rpm: float = 1450.0    # 电机转速 (rpm, 常通电)
+    motor_rpm: float = 1450.0    # 电机转速 (rpm)
+    motor_running: bool = True   # 液压站主电机运行状态 (默认开启)
 
 
 class SoftRealtimePitchEngine:
@@ -133,6 +134,7 @@ class SoftRealtimePitchEngine:
         # 集中动力站 HPU 共享参数 (3台油泵合并 64.5 L/min @ 1450 rpm)
         self.num_pumps = 3
         self.V_disp_pump = 15.6e-6
+        self.motor_running = True     # 液压站主电机启停状态 (默认 True 运行)
         self.n_motor_rpm = 1450.0
         self.eta_v = 0.95
         self.Q_pump_total = self.num_pumps * self.V_disp_pump * (self.n_motor_rpm / 60.0) * self.eta_v
@@ -227,8 +229,8 @@ class SoftRealtimePitchEngine:
                 elif p_min_acc > 265.0:
                     self.valve_25_state = False
 
-                if self.valve_25_state:
-                    # 打压时供油压力高于蓄能器母管压力 (单向阀开启压差约 2 bar)
+                if self.valve_25_state and self.motor_running:
+                    # 打压时且电机运转，供油压力高于蓄能器母管压力 (单向阀开启压差约 2 bar)
                     p_supply_calc = min(self.P_set_hpu_relief / 1.0e5, p_max_acc + 2.0)
                     self.P_supply = p_supply_calc * 1.0e5
                     self.Q_hpu_actual = self.Q_pump_total
@@ -309,7 +311,8 @@ class SoftRealtimePitchEngine:
                         valve_25_state=self.valve_25_state,
                         p_supply_bar=self.P_supply / 1.0e5,
                         q_hpu_lpm=self.Q_hpu_actual * 60000.0,
-                        motor_rpm=self.n_motor_rpm
+                        motor_rpm=self.n_motor_rpm,
+                        motor_running=self.motor_running
                     )
 
             # 4. 高精度软实时时钟对齐
@@ -498,6 +501,22 @@ class SoftRealtimePitchEngine:
     def get_all_telemetry(self) -> dict:
         with self._lock:
             return dict(self._telemetries)
+
+    def set_motor_running(self, running: bool):
+        """控制液压站主电机启停 (默认 True 运行)"""
+        with self._lock:
+            self.motor_running = bool(running)
+            self.n_motor_rpm = 1450.0 if self.motor_running else 0.0
+            if self.motor_running:
+                self.Q_pump_total = self.num_pumps * self.V_disp_pump * (self.n_motor_rpm / 60.0) * self.eta_v
+            else:
+                self.Q_pump_total = 0.0
+            for plant in self.plants.values():
+                plant.set_motor_running(self.motor_running)
+
+    def get_motor_running(self) -> bool:
+        with self._lock:
+            return self.motor_running
 
     # -------------------------------------------------------------------------
     # 6MW 轮毂集中润滑系统接口

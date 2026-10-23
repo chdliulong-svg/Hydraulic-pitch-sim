@@ -23,6 +23,7 @@ class LeftControlPanel(QWidget):
     unlockTriggered = pyqtSignal()
     lockTriggered = pyqtSignal()
     featherToggled = pyqtSignal()
+    motorToggled = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -255,7 +256,24 @@ class LeftControlPanel(QWidget):
         safe_layout.addWidget(self.lbl_safe_status)
         layout.addWidget(self.safe_box)
 
-        # 5. 实时遥测
+        # 5. 液压站动力源 (HPU)
+        self.hpu_box = QGroupBox(" 液压站动力源 (HPU) ")
+        hpu_layout = QVBoxLayout(self.hpu_box)
+        hpu_layout.setContentsMargins(8, 8, 8, 8)
+        hpu_layout.setSpacing(6)
+
+        self.btn_motor = QPushButton("🟢 油泵电机: 运行中 (点击停机)")
+        self.btn_motor.setFixedHeight(32)
+        self.btn_motor.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_motor.clicked.connect(self.motorToggled.emit)
+        hpu_layout.addWidget(self.btn_motor)
+
+        self.lbl_motor_status = QLabel("电机转速: 1450 rpm | 3泵额定: 64.5 L/min")
+        self.lbl_motor_status.setStyleSheet("color: #06D6A0; font-family: Consolas; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
+        hpu_layout.addWidget(self.lbl_motor_status)
+        layout.addWidget(self.hpu_box)
+
+        # 6. 实时遥测
         tele_box = QGroupBox(" 实时遥测 ")
         tele_layout = QGridLayout(tele_box)
         tele_layout.setContentsMargins(8, 8, 8, 8)
@@ -273,6 +291,8 @@ class LeftControlPanel(QWidget):
             ("pPP",  "锁缸压力:", "260.0 bar", "#06D6A0"),
             ("v25",  "25#阀:",   "失电(卸荷)", "#A8DADC"),
             ("pP",   "泵口压力:", "2.5 bar", "#4CC9F0"),
+            ("rpm",  "电机转速:", "1450 rpm", "#06D6A0"),
+            ("q_hpu","泵站流量:", "0.0 L/min", "#4CC9F0"),
         ]
 
         for i, (key, title, default_val, col) in enumerate(fields):
@@ -295,6 +315,7 @@ class LeftControlPanel(QWidget):
         self.update_mode_styles(True)
         self.update_feather_button_style(False)
         self.update_lock_buttons_style(False)
+        self.update_motor_button_style(True, 1450.0)
 
     def update_face_buttons_style(self, active_face: str, is_sync: bool):
         self.active_face = active_face
@@ -347,6 +368,19 @@ class LeftControlPanel(QWidget):
             self.btn_lock_release.setStyleSheet("background-color: #4CC9F0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 12px;")
             self.btn_lock_engage.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 12px;")
 
+    def update_motor_button_style(self, is_running: bool, rpm: float = 1450.0):
+        """刷新油泵电机启停按钮与状态标签外观"""
+        if is_running:
+            self.btn_motor.setText("🟢 油泵电机: 运行中 (点击停机)")
+            self.btn_motor.setStyleSheet("background-color: #162E25; color: #06D6A0; font-weight: bold; border: 1px solid #23533E; border-radius: 4px; font-size: 12px;")
+            self.lbl_motor_status.setText(f"电机转速: {rpm:4.0f} rpm | 3泵额定: 64.5 L/min")
+            self.lbl_motor_status.setStyleSheet("color: #06D6A0; font-family: Consolas; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #172B23; border: 1px solid #23533E; border-radius: 4px;")
+        else:
+            self.btn_motor.setText("🔴 油泵电机: 已停机 (点击启动)")
+            self.btn_motor.setStyleSheet("background-color: #381519; color: #EF233C; font-weight: bold; border: 1px solid #5C2229; border-radius: 4px; font-size: 12px;")
+            self.lbl_motor_status.setText("电机转速: 0 rpm | 停机无压力供油")
+            self.lbl_motor_status.setStyleSheet("color: #EF233C; font-family: Consolas; font-size: 11px; font-weight: bold; padding: 4px 6px; background-color: #381519; border: 1px solid #5C2229; border-radius: 4px;")
+
     def update_telemetry(self, active_t, is_locked: bool, u_cmd: float = 0.0):
         """刷新遥测数据标签与机械锁状态"""
         self.tele_labels["disp"].setText(f"{active_t.displacement_mm:5.1f} mm")
@@ -360,6 +394,11 @@ class LeftControlPanel(QWidget):
         self.tele_labels["v25"].setText("打压" if active_t.valve_25_state else "卸荷")
         self.tele_labels["v25"].setStyleSheet("color: #06D6A0; font-family: Consolas; font-size: 12px; font-weight: bold;" if active_t.valve_25_state else "color: #8D99AE; font-family: Consolas; font-size: 12px; font-weight: bold;")
         self.tele_labels["pP"].setText(f"{active_t.p_supply_bar:5.1f} bar")
+        self.tele_labels["rpm"].setText(f"{getattr(active_t, 'motor_rpm', 1450.0):4.0f} rpm")
+        self.tele_labels["q_hpu"].setText(f"{getattr(active_t, 'q_hpu_lpm', 0.0):4.1f} L/min")
+
+        # 同步电机按键显示
+        self.update_motor_button_style(getattr(active_t, 'motor_running', True), getattr(active_t, 'motor_rpm', 1450.0))
 
         align_txt = "是" if active_t.switch_129 else "否"
         if is_locked:

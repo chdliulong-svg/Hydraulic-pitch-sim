@@ -92,7 +92,9 @@ class BladeFaceTabWidget(QWidget):
             p_PP_bar=t.p_PP_bar,
             valve_25_state=t.valve_25_state,
             p_supply_bar=t.p_supply_bar,
-            q_hpu_lpm=t.q_hpu_lpm
+            q_hpu_lpm=t.q_hpu_lpm,
+            motor_running=getattr(t, 'motor_running', True),
+            motor_rpm=getattr(t, 'motor_rpm', 1450.0)
         )
 
         # 刷新示波器曲线

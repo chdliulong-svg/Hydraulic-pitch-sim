@@ -30,10 +30,11 @@ class PitchHydraulicSystem:
         self.dt = dt
 
         # 1. 油源与液压站 (HPU) 动力源参数
-        # 3个油泵合并供油, 每个泵排量 15.6 ml/r, 电机转速 1450 rpm (常通电运行)
+        # 3个油泵合并供油, 每个泵排量 15.6 ml/r, 电机转速 1450 rpm (默认开启)
         self.num_pumps = 3
         self.V_disp_pump = 15.6e-6    # 单泵排量 15.6 ml/r (m^3/rev)
-        self.n_motor_rpm = 1450.0     # 电机转速 1450 rpm (常通电运转，不启闭电机)
+        self.motor_running = True     # 液压站电机启停状态 (默认 True 运行)
+        self.n_motor_rpm = 1450.0     # 电机转速 1450 rpm (停机时为 0 rpm)
         self.eta_v = 0.95             # 容积效率
         # 3泵理论合并有效供油流量: 3 * 15.6e-6 * (1450 / 60) * 0.95 = 1.074e-3 m3/s (~64.5 L/min)
         self.Q_pump_total = self.num_pumps * self.V_disp_pump * (self.n_motor_rpm / 60.0) * self.eta_v
@@ -149,6 +150,16 @@ class PitchHydraulicSystem:
         else:
             return -self.Cd * area * math.sqrt(2.0 * abs(delta_p) / self.rho)
 
+    def set_motor_running(self, running: bool):
+        """设置液压站主电机启停状态"""
+        self.motor_running = bool(running)
+        if self.motor_running:
+            self.n_motor_rpm = 1450.0
+            self.Q_pump_total = self.num_pumps * self.V_disp_pump * (self.n_motor_rpm / 60.0) * self.eta_v
+        else:
+            self.n_motor_rpm = 0.0
+            self.Q_pump_total = 0.0
+
     def step(self, u_prop_voltage, u_enable=1.0, u_safe_feather=0.0, f_aero=0.0,
              u_valve_130=1.0, u_valve_132=1.0, valve_25_state=None, q_pump_in=None):
         """
@@ -173,9 +184,9 @@ class PitchHydraulicSystem:
             elif p_107_bar > (self.P_load_off / 1.0e5):
                 self.valve_25_state = False
 
-        # 2. 液压站供油流量与 P 口压力求解
-        if self.valve_25_state:
-            # 25# 得电打压: 经单向阀 118 压入蓄能器母管
+        # 2. 液压站供油流量与 P 口压力求解 (若电机停机则无法建压且无供油流量)
+        if self.valve_25_state and self.motor_running:
+            # 25# 得电打压且电机运转: 经单向阀 118 压入蓄能器母管
             q_pump_avail = self.Q_pump_total if q_pump_in is None else float(q_pump_in)
             self.P_supply = min(self.P_set_hpu_relief, self.P_acc + 2.0e5)
             # 液压站回路溢流阀 (280 bar) 泄压保护
@@ -183,7 +194,7 @@ class PitchHydraulicSystem:
             Q_118 = max(0.0, q_pump_avail - q_rv_hpu)
             self.Q_hpu_actual = Q_118
         else:
-            # 25# 失电停止建压: 泵流量直接经旁路回油箱卸荷
+            # 25# 失电停止建压或电机停机: 泵流量直接经旁路回油箱卸荷或流量为0
             self.P_supply = self.P_tank + 0.5e5  # 卸荷管路背压约 2.5 bar
             Q_118 = 0.0                          # 单向阀 118 承受反向压差截止
             self.Q_hpu_actual = 0.0

@@ -43,10 +43,13 @@ class HydraulicSchematicWidget(QWidget):
         self.valve_25_state = False     # 25# 电磁阀打压/卸荷
         self.p_supply_bar = 2.5         # P口供油压力
         self.q_hpu_lpm = 0.0            # 供油流量 L/min
+        self.motor_running = True       # 电机运行状态 (默认开启)
+        self.motor_rpm = 1450.0
 
     def update_telemetry(self, stroke_mm, p_A, p_B, p_acc, valve_pos_pct, is_feathering,
                          lock_pin_mm, is_locked, switch_129, switch_S_unlocked, p_PP_bar,
-                         valve_25_state=False, p_supply_bar=2.5, q_hpu_lpm=0.0):
+                         valve_25_state=False, p_supply_bar=2.5, q_hpu_lpm=0.0,
+                         motor_running=True, motor_rpm=1450.0):
         self.stroke_mm = stroke_mm
         self.p_A_bar = p_A
         self.p_B_bar = p_B
@@ -62,6 +65,8 @@ class HydraulicSchematicWidget(QWidget):
         self.valve_25_state = valve_25_state
         self.p_supply_bar = p_supply_bar
         self.q_hpu_lpm = q_hpu_lpm
+        self.motor_running = motor_running
+        self.motor_rpm = motor_rpm
         self.update()
 
     def _p_to_color(self, p_bar):
@@ -287,16 +292,28 @@ class HydraulicSchematicWidget(QWidget):
         # 液压动力源 (HPU)
         hpu_box_x = start_x + 405
         hpu_box_w = max(180, w - hpu_box_x - 15)
-        hpu_border_col = QColor("#06D6A0") if self.valve_25_state else QColor("#4A4E69")
+        if not self.motor_running:
+            hpu_border_col = QColor("#EF233C")
+            hpu_mode_txt = "🔴 电机停机"
+        elif self.valve_25_state:
+            hpu_border_col = QColor("#06D6A0")
+            hpu_mode_txt = "🟢 打压供油"
+        else:
+            hpu_border_col = QColor("#4A4E69")
+            hpu_mode_txt = "⚪ 卸荷循环"
+
         painter.setPen(QPen(hpu_border_col, 1.8))
         painter.setBrush(QBrush(QColor("#20222C")))
         painter.drawRoundedRect(hpu_box_x, valve_box_y, hpu_box_w, 50, 4, 4)
 
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        hpu_mode_txt = "🟢 打压供油" if self.valve_25_state else "⚪ 卸荷循环"
         painter.setPen(hpu_border_col)
         painter.drawText(hpu_box_x + 10, valve_box_y + 20, f"动力源: {hpu_mode_txt}")
 
         painter.setFont(QFont("Consolas", 8))
-        painter.setPen(QColor("#4CC9F0"))
-        painter.drawText(hpu_box_x + 10, valve_box_y + 38, f"供油: {self.p_supply_bar:4.1f} bar | {self.q_hpu_lpm:4.1f} L/min")
+        if not self.motor_running:
+            painter.setPen(QColor("#EF233C"))
+            painter.drawText(hpu_box_x + 10, valve_box_y + 38, f"电机: 0 rpm | 供: {self.p_supply_bar:4.1f} bar")
+        else:
+            painter.setPen(QColor("#4CC9F0"))
+            painter.drawText(hpu_box_x + 10, valve_box_y + 38, f"供油: {self.p_supply_bar:4.1f} bar | {self.q_hpu_lpm:4.1f} L/min")

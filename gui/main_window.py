@@ -9,7 +9,7 @@ import numpy as np
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QSplitter, QFrame, QTabWidget
+    QLabel, QPushButton, QSplitter, QFrame, QTabWidget, QScrollArea
 )
 from PyQt6.QtCore import Qt, QTimer
 
@@ -178,7 +178,13 @@ class PitchMainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(8)
 
-        # 左侧控制面板
+        # 左侧控制面板 (包装在无边框自适应滚动区内)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet("background-color: transparent; border: none;")
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         self.left_panel = LeftControlPanel()
         self.left_panel.faceSelected.connect(self._select_face)
         self.left_panel.syncChanged.connect(self._on_sync_changed)
@@ -188,7 +194,9 @@ class PitchMainWindow(QMainWindow):
         self.left_panel.unlockTriggered.connect(self._cmd_unlock)
         self.left_panel.lockTriggered.connect(self._cmd_lock)
         self.left_panel.featherToggled.connect(self._on_toggle_feather)
-        splitter.addWidget(self.left_panel)
+        self.left_panel.motorToggled.connect(self._on_toggle_motor)
+        scroll_area.setWidget(self.left_panel)
+        splitter.addWidget(scroll_area)
 
         # 右侧多选项卡视窗
         right_panel = QWidget()
@@ -429,6 +437,13 @@ class PitchMainWindow(QMainWindow):
             self.u_132_cmd[k] = 0.0
             self.engine.set_lock_commands(blade=k, u_130=0.0, u_132=0.0)
         self.left_panel.update_lock_buttons_style(True)
+
+    # 液压动力源 HPU 电机交互
+    def _on_toggle_motor(self):
+        cur = self.engine.get_motor_running()
+        new_st = not cur
+        self.engine.set_motor_running(new_st)
+        self.left_panel.update_motor_button_style(new_st, 1450.0 if new_st else 0.0)
 
     # 润滑交互
     def _on_toggle_lub1_pump(self):
