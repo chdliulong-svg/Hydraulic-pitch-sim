@@ -1,5 +1,5 @@
 """
-上海电气风电集团 (SHANGHAI ELECTRIC) 兆瓦级液压变桨仿真系统
+兆瓦级风电液压变桨仿真系统
 CODESYS OPC UA 通讯与连接设置对话框 (Connection Settings Dialog)
 """
 

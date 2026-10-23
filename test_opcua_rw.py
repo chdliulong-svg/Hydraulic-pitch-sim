@@ -1,6 +1,6 @@
 """
 CODESYS OPC UA 读写验证测试脚本
-针对 sew_hydraulic_pitch_contorl_20261017 项目
+用于验证变桨仿真程序 (PRG_pitch_sim) 的双向通讯
 """
 import asyncio
 from asyncua import Client, ua
