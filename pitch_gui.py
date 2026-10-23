@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QSlider, QScrollArea,
     QGroupBox, QDoubleSpinBox, QSplitter, QFrame, QGridLayout,
-    QTabWidget, QCheckBox
+    QTabWidget, QCheckBox, QSizePolicy
 )
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QLinearGradient
@@ -42,7 +42,7 @@ class HydraulicSchematicWidget(QWidget):
     def __init__(self, face_name="A", parent=None):
         super().__init__(parent)
         self.face_name = face_name
-        self.setMinimumHeight(320)
+        self.setFixedHeight(285)
         self.setStyleSheet("background-color: #14151B; border-radius: 8px;")
 
         # 主油缸状态
@@ -110,42 +110,41 @@ class HydraulicSchematicWidget(QWidget):
         painter.drawRoundedRect(12, 6, max(600, w - 24), 26, 4, 4)
 
         painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        tag = f"【{self.face_name}面机构】"
+        tag = f"【叶片 {self.face_name}】"
         if self.is_locked:
             painter.setPen(QColor("#FFB703"))
             painter.drawText(
                 22, 23,
-                f"{tag} 🔒 变桨锁已刚性锁死：40/20X60销轴卡入轮毂锁孔，主油缸机械闭锁禁止动作！"
+                f"{tag} 🔒 机械锁已锁死：锁销插入闭锁孔，主油缸闭锁禁止动作"
             )
         elif self.is_feathering:
             painter.setPen(QColor("#EF233C"))
             painter.drawText(
                 22, 23,
-                f"{tag} ★ 应急顺桨保护触发：阀120/103导通，蓄能器高压直充A腔，B腔经快放孔高速泄压 ★"
+                f"{tag} 🛑 应急顺桨中：蓄能器充液顺桨，快放回路高速泄压"
             )
         else:
             painter.setPen(QColor("#06D6A0"))
             painter.drawText(
                 22, 23,
-                f"{tag} 🟢 正常变桨运行：机械锁已拔出解锁，比例伺服阀 102A 连续微调，双缸并联驱动"
+                f"{tag} 🟢 正常运行：比例阀伺服微调控制，双缸并联驱动"
             )
 
-        # 2. 坐标布局 (start_x 向右留足 118px 边距，c1_y 下移至 90px，避免文字与缸体重叠或被顶部切边)
-        avail_w = w - 190
-        start_x = 118
-        cyl_w = max(250, min(320, avail_w - 250))
+        # 2. 坐标布局
+        start_x = 90
+        cyl_w = max(200, min(240, int((w - 320) / 2)))
         cyl_h = 40
         c1_y = 90
         c2_y = 155
 
         ratio = max(0.0, min(1.0, self.stroke_mm / self.stroke_max))
-        piston_x = start_x + 12 + ratio * (cyl_w - 55)
+        piston_x = start_x + 10 + ratio * (cyl_w - 50)
 
         col_A = self._p_to_color(self.p_A_bar)
         col_B = self._p_to_color(self.p_B_bar)
 
-        # 绘制主缸 124 与缸 125
-        for cy, name in [(c1_y, f"{self.face_name}面缸124 (200/125)"), (c2_y, f"{self.face_name}面缸125 (200/125)")]:
+        # 绘制主缸 1 与主缸 2
+        for cy, name in [(c1_y, "主油缸 1"), (c2_y, "主油缸 2")]:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(col_A))
             painter.drawRect(int(start_x + 3), int(cy + 3), int(piston_x - start_x - 3), int(cyl_h - 6))
@@ -163,7 +162,7 @@ class HydraulicSchematicWidget(QWidget):
             painter.drawRoundedRect(int(piston_x), int(cy + 2), 16, int(cyl_h - 4), 2, 2)
 
             # 活塞杆
-            rod_len = (cyl_w - 45)
+            rod_len = (cyl_w - 40)
             rod_end_x = piston_x + 16 + rod_len
             rod_grad = QLinearGradient(0, cy + 12, 0, cy + cyl_h - 12)
             rod_grad.setColorAt(0.0, QColor("#E0E1DD"))
@@ -177,13 +176,13 @@ class HydraulicSchematicWidget(QWidget):
             painter.setPen(QPen(QColor("#CED4DA"), 2.5))
             painter.drawRect(int(start_x), int(cy), int(cyl_w), int(cyl_h))
 
-            # 标签 (置于缸体左侧空白区 start_x-110 处，杜绝与缸体重叠遮挡)
+            # 标签
             painter.setPen(QColor("#A8DADC"))
-            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-            painter.drawText(start_x - 110, cy + 25, name)
+            painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            painter.drawText(18, cy + 25, name)
 
         # 双杆机械同步连杆 (带有机械锁孔)
-        link_x = piston_x + 16 + (cyl_w - 45)
+        link_x = piston_x + 16 + (cyl_w - 40)
         painter.setPen(QPen(QColor("#FFD166"), 6))
         painter.drawLine(int(link_x), int(c1_y + 20), int(link_x), int(c2_y + 20))
 
@@ -194,12 +193,12 @@ class HydraulicSchematicWidget(QWidget):
         painter.drawEllipse(int(link_x - 7), mid_cy - 7, 14, 14)
         painter.setPen(QColor("#06D6A0"))
         painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        painter.drawText(int(link_x + 16), mid_cy + 5, "▶ 驱动叶片")
+        painter.drawText(int(link_x + 14), mid_cy + 5, "▶ 驱动叶片")
 
         # -------------------------------------------------------------
-        # 3. 动态绘制 40/20X60 变桨机械锁紧装置与锁销动作
+        # 3. 动态绘制变桨机械锁紧装置与锁销动作
         # -------------------------------------------------------------
-        lock_stand_x = start_x + 12 + (cyl_w - 55) + 16 + (cyl_w - 45) # 90°顺桨时连杆所在固定位置
+        lock_stand_x = start_x + 10 + (cyl_w - 50) + 16 + (cyl_w - 40) # 90°顺桨时连杆所在固定位置
         lock_box_x = int(lock_stand_x - 14)
         lock_box_y = c1_y - 44
         lock_box_w = 28
@@ -209,51 +208,51 @@ class HydraulicSchematicWidget(QWidget):
         pin_travel_px = int((self.lock_pin_mm / 60.0) * 24)
         pin_tip_y = lock_box_y + lock_box_h + pin_travel_px
 
-        # 锁油缸外壳 (40/20X60)
+        # 锁油缸外壳
         painter.setPen(QPen(QColor("#FFD166"), 1.8))
         painter.setBrush(QBrush(QColor("#242734")))
         painter.drawRoundedRect(lock_box_x, lock_box_y, lock_box_w, lock_box_h, 3, 3)
 
-        # 内置弹簧示意 (绿色受压, 橙色释能)
+        # 内置弹簧示意
         painter.setPen(QPen(QColor("#06D6A0" if self.lock_pin_mm < 10 else "#FFB703"), 1.5))
         for sp_y in range(lock_box_y + 6, lock_box_y + 24, 4):
             painter.drawLine(lock_box_x + 4, sp_y, lock_box_x + lock_box_w - 4, sp_y + 2)
 
-        # 高强度钢锁紧销 (向下伸出插孔)
+        # 锁紧销
         painter.setPen(QPen(QColor("#EDF2F4"), 1))
         painter.setBrush(QBrush(QColor("#E0E1DD" if not self.is_locked else "#EF233C")))
         painter.drawRect(lock_box_x + 8, lock_box_y + 12, 12, lock_box_h - 12 + pin_travel_px)
 
-        # 锁孔套筒 (位于机械架上)
+        # 锁孔套筒
         painter.setPen(QPen(QColor("#8D99AE"), 2))
         painter.drawRect(lock_box_x + 5, c1_y - 2, 18, 14)
 
-        # 锁状态标志 (纵向坐标 lock_box_y - 6 = 40px，上方留足空间，彻底解决文字切边与遮挡问题)
+        # 锁状态标志
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         if self.is_locked:
             painter.setPen(QColor("#EF233C"))
-            painter.drawText(lock_box_x - 30, lock_box_y - 6, f"🔒 {self.face_name}面已锁死")
+            painter.drawText(lock_box_x - 15, lock_box_y - 6, "🔒 已锁死")
         elif self.switch_129:
             painter.setPen(QColor("#06D6A0"))
-            painter.drawText(lock_box_x - 35, lock_box_y - 6, f"🟢 {self.face_name}面对准可锁")
+            painter.drawText(lock_box_x - 20, lock_box_y - 6, "🟢 对准可锁")
         else:
             painter.setPen(QColor("#A8DADC"))
-            painter.drawText(lock_box_x - 30, lock_box_y - 6, f"🔓 {self.face_name}面已解锁")
+            painter.drawText(lock_box_x - 15, lock_box_y - 6, "🔓 已解锁")
 
-        # 标注 40/20X60
+        # 锁缸标注
         painter.setPen(QColor("#EDF2F4"))
-        painter.setFont(QFont("Consolas", 7))
-        painter.drawText(lock_box_x + 32, lock_box_y + 16, "40/20X60\n锁紧缸")
+        painter.setFont(QFont("Segoe UI", 8))
+        painter.drawText(lock_box_x + 34, lock_box_y + 20, "机械锁缸")
 
         # 油口标注
         painter.setFont(QFont("Segoe UI", 8))
-        painter.drawText(start_x + 10, c1_y - 8, "A口 (无杆腔并联)")
-        painter.drawText(start_x + cyl_w - 95, c1_y - 8, "B口 (有杆腔并联)")
+        painter.drawText(start_x + 8, c1_y - 8, "A口 (无杆腔)")
+        painter.drawText(start_x + cyl_w - 78, c1_y - 8, "B口 (有杆腔)")
 
         # -------------------------------------------------------------
-        # 4. 8x25L 蓄能器组 (106)
+        # 4. 蓄能器组
         # -------------------------------------------------------------
-        acc_x = w - 145
+        acc_x = max(int(lock_box_x + 120), w - 105)
         acc_y = 65
         painter.setPen(QPen(QColor("#FFD166"), 2))
         painter.setBrush(QBrush(QColor("#2B2D42")))
@@ -268,7 +267,7 @@ class HydraulicSchematicWidget(QWidget):
 
         painter.setPen(QColor("#EDF2F4"))
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.drawText(acc_x + 9, acc_y + 26, f"{self.face_name}面\n8x25L")
+        painter.drawText(acc_x + 10, acc_y + 26, "蓄能器组")
         painter.setPen(QColor("#FFD166"))
         painter.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
         painter.drawText(acc_x + 2, acc_y + 112, f"{self.p_acc_bar:.1f} bar")
@@ -277,56 +276,57 @@ class HydraulicSchematicWidget(QWidget):
         # 5. 底部阀组拓扑卡片
         # -------------------------------------------------------------
         valve_box_y = 220
-        # 比例阀 102A
+        # 比例伺服阀
         v_col = QColor("#06D6A0") if not self.is_feathering and not self.is_locked else QColor("#8D99AE")
         painter.setPen(QPen(v_col, 1.8))
         painter.setBrush(QBrush(QColor("#20222C")))
-        painter.drawRoundedRect(start_x, valve_box_y, 135, 52, 4, 4)
+        painter.drawRoundedRect(start_x, valve_box_y, 125, 50, 4, 4)
         painter.setPen(v_col)
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.drawText(start_x + 14, valve_box_y + 22, "比例伺服阀 102A")
+        painter.drawText(start_x + 14, valve_box_y + 20, "比例伺服阀")
         painter.setFont(QFont("Consolas", 9))
-        painter.drawText(start_x + 25, valve_box_y + 41, f"开度: {self.valve_pos_pct:+.1f} %")
+        painter.drawText(start_x + 20, valve_box_y + 38, f"开度: {self.valve_pos_pct:+.1f} %")
 
-        # 顺桨节流元件 121 (充液) / 122 (快放)
+        # 应急顺桨阀组
         f_col = QColor("#EF233C") if self.is_feathering else QColor("#4A4E69")
         painter.setPen(QPen(f_col, 1.8))
         painter.setBrush(QBrush(QColor("#20222C")))
-        painter.drawRoundedRect(start_x + 145, valve_box_y, 150, 52, 4, 4)
+        painter.drawRoundedRect(start_x + 135, valve_box_y, 125, 50, 4, 4)
         painter.setPen(QColor("#EDF2F4"))
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.drawText(start_x + 152, valve_box_y + 22, f"顺桨充液 121 (Φ{self.d_121_mm:.1f}mm)")
-        painter.drawText(start_x + 152, valve_box_y + 41, f"快放调速 122 (Φ{self.d_122_mm:.1f}mm)")
+        painter.drawText(start_x + 143, valve_box_y + 20, "应急顺桨回路")
+        painter.setFont(QFont("Segoe UI", 8))
+        painter.setPen(QColor("#8D99AE") if not self.is_feathering else QColor("#FF4D6D"))
+        painter.drawText(start_x + 143, valve_box_y + 38, "充液 / 快放阀")
 
-        # 变桨锁电磁阀 130 / 132 卡片
+        # 锁缸控制阀
         lock_valv_col = QColor("#06D6A0") if self.switch_S_unlocked else QColor("#FFB703")
         painter.setPen(QPen(lock_valv_col, 1.8))
-        painter.drawRoundedRect(start_x + 305, valve_box_y, 140, 52, 4, 4)
+        painter.setBrush(QBrush(QColor("#20222C")))
+        painter.drawRoundedRect(start_x + 270, valve_box_y, 125, 50, 4, 4)
         painter.setPen(lock_valv_col)
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.drawText(start_x + 315, valve_box_y + 22, "变桨锁阀 130/132")
+        painter.drawText(start_x + 280, valve_box_y + 20, "锁缸控制阀")
         painter.setFont(QFont("Consolas", 9))
         painter.setPen(QColor("#EDF2F4"))
-        painter.drawText(start_x + 315, valve_box_y + 41, f"PP压: {self.p_PP_bar:4.1f} bar")
+        painter.drawText(start_x + 280, valve_box_y + 38, f"锁压: {self.p_PP_bar:4.1f} bar")
 
-        # P/T 供油与液压站 (HPU) 动力单元拓扑
-        hpu_box_x = start_x + 455
-        hpu_box_w = max(195, w - hpu_box_x - 15)
+        # 液压动力源 (HPU)
+        hpu_box_x = start_x + 405
+        hpu_box_w = max(180, w - hpu_box_x - 15)
         hpu_border_col = QColor("#06D6A0") if self.valve_25_state else QColor("#4A4E69")
         painter.setPen(QPen(hpu_border_col, 1.8))
         painter.setBrush(QBrush(QColor("#20222C")))
-        painter.drawRoundedRect(hpu_box_x, valve_box_y, hpu_box_w, 52, 4, 4)
+        painter.drawRoundedRect(hpu_box_x, valve_box_y, hpu_box_w, 50, 4, 4)
 
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        hpu_mode_txt = "🟢 25#得电打压" if self.valve_25_state else "⚪ 25#失电卸荷"
+        hpu_mode_txt = "🟢 打压供油" if self.valve_25_state else "⚪ 卸荷循环"
         painter.setPen(hpu_border_col)
-        painter.drawText(hpu_box_x + 8, valve_box_y + 17, f"HPU站: {hpu_mode_txt}")
+        painter.drawText(hpu_box_x + 10, valve_box_y + 20, f"动力源: {hpu_mode_txt}")
 
         painter.setFont(QFont("Consolas", 8))
         painter.setPen(QColor("#4CC9F0"))
-        painter.drawText(hpu_box_x + 8, valve_box_y + 32, f"P口: {self.p_supply_bar:4.1f} bar | {self.q_hpu_lpm:4.1f} L/m")
-        painter.setPen(QColor("#8D99AE"))
-        painter.drawText(hpu_box_x + 8, valve_box_y + 46, f"溢流: 280 bar | 3泵 1450rpm")
+        painter.drawText(hpu_box_x + 10, valve_box_y + 38, f"供油: {self.p_supply_bar:4.1f} bar | {self.q_hpu_lpm:4.1f} L/min")
 
 
 # =============================================================================
@@ -515,8 +515,9 @@ class PitchMainWindow(QMainWindow):
         right_panel = self._build_right_panel()
         splitter.addWidget(right_panel)
 
-        splitter.setStretchFactor(0, 4)
-        splitter.setStretchFactor(1, 6)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([380, 1060])
         main_layout.addWidget(splitter)
 
     def _build_left_panel(self):
@@ -848,9 +849,9 @@ class PitchMainWindow(QMainWindow):
         self.curves_pSupply = {}
 
         tabs_info = [
-            ('A', '【A 面】变桨机构 (Blade A / 轴 1)'),
-            ('B', '【B 面】变桨机构 (Blade B / 轴 2)'),
-            ('C', '【C 面】变桨机构 (Blade C / 轴 3)')
+            ('A', '叶片 A'),
+            ('B', '叶片 B'),
+            ('C', '叶片 C')
         ]
 
         for k, face_title in tabs_info:
@@ -870,10 +871,10 @@ class PitchMainWindow(QMainWindow):
         # 1. 动态拓扑图 (带 A/B/C 面标识)
         schematic = HydraulicSchematicWidget(face_name=k)
         self.schematic_widgets[k] = schematic
-        page_layout.addWidget(schematic, stretch=4)
+        page_layout.addWidget(schematic)
 
         # 2. pyqtgraph 示波器
-        scope_box = QGroupBox(f" {k} 面软实时双通道示波器 (Oscilloscope Strip Charts) ")
+        scope_box = QGroupBox(f" 叶片 {k} 实时运行曲线 ")
         scope_layout = QVBoxLayout(scope_box)
         scope_layout.setContentsMargins(6, 8, 6, 6)
 
@@ -884,24 +885,24 @@ class PitchMainWindow(QMainWindow):
         # 通道 1: 位移
         p1 = plot_widget.addPlot(row=0, col=0)
         p1.showGrid(x=True, y=True, alpha=0.3)
-        p1.setLabel('left', f'{k}面 位移 (mm)', color='#4CC9F0')
+        p1.setLabel('left', '位移 (mm)', color='#4CC9F0')
         p1.setYRange(0, 850, padding=0.05)
         p1.addLegend(offset=(10, 10), brush="#1E202B")
 
         self.curves_target[k] = p1.plot(
             pen=pg.mkPen(color='#E76F51', width=2, style=Qt.PenStyle.DashLine),
-            name="目标位移指令"
+            name="目标位移"
         )
         self.curves_actual[k] = p1.plot(
             pen=pg.mkPen(color='#4CC9F0', width=2.5),
-            name=f"{k}面双缸实际行程"
+            name="实际行程"
         )
 
         # 通道 2: 压力
         p2 = plot_widget.addPlot(row=1, col=0)
         p2.showGrid(x=True, y=True, alpha=0.3)
-        p2.setLabel('left', f'{k}面 压力 (bar)', color='#FFD166')
-        p2.setLabel('bottom', '相对时间 (秒)', color='#A8DADC')
+        p2.setLabel('left', '压力 (bar)', color='#FFD166')
+        p2.setLabel('bottom', '相对时间 (s)', color='#A8DADC')
         p2.setYRange(0, 300, padding=0.05)
         p2.addLegend(offset=(10, 10), brush="#1E202B")
 
@@ -909,11 +910,11 @@ class PitchMainWindow(QMainWindow):
         p2.addLine(y=265, pen=pg.mkPen(color='#06D6A0', width=1.0, style=Qt.PenStyle.DashDotLine))
         p2.addLine(y=280, pen=pg.mkPen(color='#D90429', width=1.0, style=Qt.PenStyle.DotLine))
 
-        self.curves_pA[k] = p2.plot(pen=pg.mkPen(color='#EF233C', width=2), name=f"{k}面 p_A (无杆腔)")
-        self.curves_pB[k] = p2.plot(pen=pg.mkPen(color='#48CAE4', width=2), name=f"{k}面 p_B (有杆腔)")
+        self.curves_pA[k] = p2.plot(pen=pg.mkPen(color='#EF233C', width=2), name="p_A (无杆腔)")
+        self.curves_pB[k] = p2.plot(pen=pg.mkPen(color='#48CAE4', width=2), name="p_B (有杆腔)")
         self.curves_pacc[k] = p2.plot(
             pen=pg.mkPen(color='#FFB703', width=2, style=Qt.PenStyle.DashLine),
-            name=f"{k}面 p_107 (母管蓄能器)"
+            name="p_acc (蓄能器)"
         )
         self.curves_pSupply[k] = p2.plot(
             pen=pg.mkPen(color='#4CC9F0', width=1.5, style=Qt.PenStyle.DotLine),
@@ -921,7 +922,7 @@ class PitchMainWindow(QMainWindow):
         )
 
         scope_layout.addWidget(plot_widget)
-        page_layout.addWidget(scope_box, stretch=6)
+        page_layout.addWidget(scope_box, stretch=1)
 
         return page
 
