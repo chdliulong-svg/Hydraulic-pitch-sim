@@ -1,0 +1,21 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment & IDE
+.venv/
+env/
+venv/
+.idea/
+.vscode/
+
+# Logs & temp files
+*.log
+*.tmp
+*.bak
+
+# Original schematics & image crops with OEM title blocks
+*.pdf
+schematics_analysis/
