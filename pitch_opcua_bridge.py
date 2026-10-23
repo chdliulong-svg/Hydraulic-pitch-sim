@@ -321,13 +321,16 @@ class PitchOpcUaBridge:
                         ),
                     ])
 
-                    # 探测 raw 节点有效性与可写性
+                    # 探测 raw 节点有效性与写权限 (UserAccessLevel 必须包含 0x02 写权限)
                     active_raw_items = []
                     for nid, getter, vtype in raw_fb_candidates:
                         try:
                             n = client.get_node(nid)
-                            await n.read_data_value()
-                            active_raw_items.append((n, getter, vtype))
+                            ual = await n.read_attribute(ua.AttributeIds.UserAccessLevel)
+                            if ual.Value.Value & 0x02:
+                                active_raw_items.append((n, getter, vtype))
+                            else:
+                                logger.debug(f"Raw 节点 {nid} 权限为只读 (UserAccessLevel={hex(ual.Value.Value)})，跳过直接写入")
                         except Exception as e:
                             logger.debug(f"Raw 节点 {nid} 不可用或未导出: {e}")
 

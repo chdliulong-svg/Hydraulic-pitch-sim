@@ -2029,10 +2029,10 @@ class PitchMainWindow(QMainWindow):
                 hb_plc = self.opcua_bridge.heartbeat_plc
                 hb_sim = self.opcua_bridge.heartbeat_sim
                 self.lbl_auth_status.setText(f"🟢 远程在线 (PLC: {hb_plc} | Sim: {hb_sim})")
-                self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 12px; font-weight: bold;")
+                self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #162E25; border-radius: 4px; border: 1px solid #23533E;")
             else:
                 self.lbl_auth_status.setText("🔄 连接中 (4840)...")
-                self.lbl_auth_status.setStyleSheet("color: #FFB703; font-size: 12px; font-weight: bold;")
+                self.lbl_auth_status.setStyleSheet("color: #FFB703; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #2B2317; border-radius: 4px; border: 1px solid #5A4015;")
 
         # 6. 6MW 轮毂润滑系统遥测更新
         lub = self.engine.get_lub_telemetry()
