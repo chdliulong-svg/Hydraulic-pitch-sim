@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 from pitch_simulation import PitchHydraulicSystem
 from pitch_lubrication_sim import LubricationSystemSim, LubricationTelemetry
+from pitch_temperature_sim import TemperatureSystemSim, TemperatureTelemetry
 
 
 @dataclass
@@ -83,6 +84,7 @@ class RemoteSystemFeedback:
     motor_rpm: float = 1450.0          # 电机转速 (rpm)
     timestamp: float = 0.0             # 仿真时钟 (s)
     lubrication: Optional[LubricationTelemetry] = None # 6MW 轮毂润滑系统遥测
+    temperature: Optional[TemperatureTelemetry] = None # 6MW 轮毂温度系统遥测
     blades: Dict[str, RemoteBladeFeedback] = field(default_factory=dict)
 
 
@@ -147,6 +149,10 @@ class SoftRealtimePitchEngine:
         self._lub_cmd_pump2_local = False
         self._lub_cmd_pump1_remote = False
         self._lub_cmd_pump2_remote = False
+
+        # 6MW 轮毂热力学与温度系统动态模型
+        self.temp_sim = TemperatureSystemSim(dt=self.cycle_time)
+        self._temp_telemetry = TemperatureTelemetry()
 
         self._running = False
         self._thread = None
@@ -258,6 +264,16 @@ class SoftRealtimePitchEngine:
             # 推进 6MW 轮毂润滑系统动力学 (以仿真主循环步长推进)
             lub_tele = self.lub_sim.step(cmd_lub_p1, cmd_lub_p2)
 
+            # 推进 6MW 轮毂与液压系统温度热力学动态
+            max_v = max(abs(self.plants[k].v) for k in self.blades)
+            motion_intensity = min(1.0, max_v / 0.1)
+            lub_on = (lub_tele.pump1_on or lub_tele.pump2_on)
+            temp_tele = self.temp_sim.step(
+                valve_25_charging=self.valve_25_state,
+                cyl_motion_intensity=motion_intensity,
+                lub_pumps_on=lub_on
+            )
+
             self.sim_time += self.cycle_time
 
             # 3. 统计实时性指标
@@ -269,6 +285,7 @@ class SoftRealtimePitchEngine:
 
             with self._lock:
                 self._lub_telemetry = lub_tele
+                self._temp_telemetry = temp_tele
                 for k in self.blades:
                     x, v, p_acc, p_A, p_B, valve_pos = step_outputs[k]
                     plant = self.plants[k]
@@ -442,6 +459,7 @@ class SoftRealtimePitchEngine:
                 motor_rpm=self.n_motor_rpm,
                 timestamp=self.sim_time,
                 lubrication=self._lub_telemetry,
+                temperature=self._temp_telemetry,
                 blades=blade_fbs
             )
 
@@ -507,4 +525,24 @@ class SoftRealtimePitchEngine:
                 tank2_empty=tank2_empty,
                 block_1=block_1,
                 block_2=block_2
+            )
+
+    # -------------------------------------------------------------------------
+    # 6MW 轮毂温度热力学系统接口
+    # -------------------------------------------------------------------------
+    def get_temp_telemetry(self) -> TemperatureTelemetry:
+        with self._lock:
+            return self._temp_telemetry
+
+    def set_ambient_temperature(self, temp_deg: float):
+        with self._lock:
+            self.temp_sim.set_ambient_temperature(temp_deg)
+
+    def set_temp_faults(self, oil_overheat=None, extreme_cold=None, fan_fail=None, pt100_open=None):
+        with self._lock:
+            self.temp_sim.set_faults(
+                oil_overheat=oil_overheat,
+                extreme_cold=extreme_cold,
+                fan_fail=fan_fail,
+                pt100_open=pt100_open
             )
