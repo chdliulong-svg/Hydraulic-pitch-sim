@@ -448,19 +448,49 @@ class PitchMainWindow(QMainWindow):
         main_layout.setContentsMargins(14, 10, 14, 10)
         main_layout.setSpacing(10)
 
-        # --- 顶部状态指示栏 ---
+        # --- 顶部紧凑导航与状态栏 ---
         top_bar = QFrame()
-        top_bar.setStyleSheet("background-color: #21232C; border-radius: 8px; padding: 6px;")
+        top_bar.setStyleSheet("background-color: #21232C; border-radius: 6px; border: 1px solid #363A4A;")
         top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(16, 6, 16, 6)
+        top_layout.setContentsMargins(14, 5, 14, 5)
+        top_layout.setSpacing(12)
 
-        title_lbl = QLabel("⚡ 兆瓦级风电三面变桨液压系统数字孪生 (A面 / B面 / C面联动)")
+        title_lbl = QLabel("⚡ 变桨液压仿真系统")
         title_lbl.setStyleSheet("font-size: 14px; font-weight: bold; color: #EDF2F4;")
         top_layout.addWidget(title_lbl)
 
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.Shape.VLine)
+        sep1.setStyleSheet("color: #3D4357; max-height: 20px;")
+        top_layout.addWidget(sep1)
+
+        # 控制权限切换 (置顶全局控制)
+        self.btn_local_ctrl = QPushButton("📍 本地控制")
+        self.btn_local_ctrl.setCheckable(True)
+        self.btn_local_ctrl.setChecked(True)
+        self.btn_local_ctrl.setFixedHeight(28)
+        self.btn_local_ctrl.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_local_ctrl.setStyleSheet("background-color: #06D6A0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+        self.btn_local_ctrl.clicked.connect(lambda: self._set_control_authority("LOCAL"))
+
+        self.btn_remote_ctrl = QPushButton("🌐 远程控制")
+        self.btn_remote_ctrl.setCheckable(True)
+        self.btn_remote_ctrl.setChecked(False)
+        self.btn_remote_ctrl.setFixedHeight(28)
+        self.btn_remote_ctrl.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_remote_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+        self.btn_remote_ctrl.clicked.connect(lambda: self._set_control_authority("REMOTE"))
+
+        top_layout.addWidget(self.btn_local_ctrl)
+        top_layout.addWidget(self.btn_remote_ctrl)
+
+        self.lbl_auth_status = QLabel("● 本地就绪")
+        self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #162E25; border-radius: 4px;")
+        top_layout.addWidget(self.lbl_auth_status)
+
         top_layout.addStretch()
 
-        self.lbl_clock_stat = QLabel("软实时时钟: 0.0s | 频率: 100Hz | 调度抖动: 0.0ms | 超载步数: 0")
+        self.lbl_clock_stat = QLabel("时钟: 0.0s | 200Hz (5.0ms) | 抖动: 0.0ms")
         self.lbl_clock_stat.setStyleSheet("font-family: Consolas; font-size: 12px; color: #06D6A0; font-weight: bold;")
         top_layout.addWidget(self.lbl_clock_stat)
 
@@ -475,7 +505,7 @@ class PitchMainWindow(QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         scroll_area.setStyleSheet("background-color: transparent;")
-        scroll_area.setMinimumWidth(440)
+        scroll_area.setMinimumWidth(380)
 
         left_panel = self._build_left_panel()
         scroll_area.setWidget(left_panel)
@@ -493,56 +523,19 @@ class PitchMainWindow(QMainWindow):
         panel = QWidget()
         panel.setStyleSheet("background-color: transparent;")
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(4, 0, 10, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(4, 0, 8, 8)
+        layout.setSpacing(8)
 
         # -------------------------------------------------------------
-        # 最左上角: 控制权限模式 (本地控制 / 远程控制)
+        # 1. 叶片选择
         # -------------------------------------------------------------
-        auth_box = QGroupBox(" 🕹️ 控制权限模式 (Control Authority) ")
-        auth_layout = QVBoxLayout(auth_box)
-        auth_layout.setContentsMargins(10, 8, 10, 8)
-        auth_layout.setSpacing(6)
-
-        auth_btn_row = QHBoxLayout()
-        auth_btn_row.setSpacing(8)
-
-        self.btn_local_ctrl = QPushButton("📍 本地控制 (Local)")
-        self.btn_local_ctrl.setCheckable(True)
-        self.btn_local_ctrl.setChecked(True)
-        self.btn_local_ctrl.setFixedHeight(34)
-        self.btn_local_ctrl.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_local_ctrl.setStyleSheet("background-color: #06D6A0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 12px;")
-        self.btn_local_ctrl.clicked.connect(lambda: self._set_control_authority("LOCAL"))
-
-        self.btn_remote_ctrl = QPushButton("🌐 远程控制 (Remote)")
-        self.btn_remote_ctrl.setCheckable(True)
-        self.btn_remote_ctrl.setChecked(False)
-        self.btn_remote_ctrl.setFixedHeight(34)
-        self.btn_remote_ctrl.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_remote_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 12px;")
-        self.btn_remote_ctrl.clicked.connect(lambda: self._set_control_authority("REMOTE"))
-
-        auth_btn_row.addWidget(self.btn_local_ctrl)
-        auth_btn_row.addWidget(self.btn_remote_ctrl)
-        auth_layout.addLayout(auth_btn_row)
-
-        self.lbl_auth_status = QLabel("● 当前处于【本地控制】：允许本面板滑块/自动闭环调桨")
-        self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
-        auth_layout.addWidget(self.lbl_auth_status)
-
-        layout.addWidget(auth_box)
-
-        # -------------------------------------------------------------
-        # 0. 变桨机构面选择 (A面 / B面 / C面 / 三面同步)
-        # -------------------------------------------------------------
-        face_box = QGroupBox(" 变桨机构面选择 (Blade Face Select) ")
+        face_box = QGroupBox(" 叶片选择 ")
         face_layout = QHBoxLayout(face_box)
-        face_layout.setContentsMargins(10, 8, 10, 8)
+        face_layout.setContentsMargins(8, 6, 8, 6)
         face_layout.setSpacing(6)
 
         self.btn_faces = {}
-        for k, text in [('A', 'A面 (轴1)'), ('B', 'B面 (轴2)'), ('C', 'C面 (轴3)')]:
+        for k, text in [('A', '叶片 A'), ('B', '叶片 B'), ('C', '叶片 C')]:
             b = QPushButton(text)
             b.setCheckable(True)
             b.setFixedHeight(28)
@@ -551,7 +544,7 @@ class PitchMainWindow(QMainWindow):
             self.btn_faces[k] = b
             face_layout.addWidget(b)
 
-        self.chk_sync_all = QCheckBox("三面同步联动")
+        self.chk_sync_all = QCheckBox("三叶片同步")
         self.chk_sync_all.setStyleSheet("color: #FFD166; font-size: 11px; font-weight: bold;")
         self.chk_sync_all.stateChanged.connect(self._on_sync_changed)
         face_layout.addWidget(self.chk_sync_all)
@@ -559,26 +552,26 @@ class PitchMainWindow(QMainWindow):
         layout.addWidget(face_box)
 
         # -------------------------------------------------------------
-        # 1. 变桨运动控制 (合并模式选择 + 自动/手动无缝切换)
+        # 2. 运动控制
         # -------------------------------------------------------------
-        self.motion_box = QGroupBox(" 变桨运动控制 (Pitch Motion Control) ")
+        self.motion_box = QGroupBox(" 运动控制 ")
         motion_layout = QVBoxLayout(self.motion_box)
-        motion_layout.setContentsMargins(10, 10, 10, 10)
-        motion_layout.setSpacing(8)
+        motion_layout.setContentsMargins(8, 8, 8, 8)
+        motion_layout.setSpacing(6)
 
         # 模式切换分段按钮
         mode_btn_row = QHBoxLayout()
-        mode_btn_row.setSpacing(8)
-        self.btn_mode_auto = QPushButton("⚡ 自动闭环控制 (PID)")
+        mode_btn_row.setSpacing(6)
+        self.btn_mode_auto = QPushButton("闭环位置 (PID)")
         self.btn_mode_auto.setCheckable(True)
         self.btn_mode_auto.setChecked(True)
-        self.btn_mode_auto.setFixedHeight(34)
+        self.btn_mode_auto.setFixedHeight(30)
         self.btn_mode_auto.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.btn_mode_manual = QPushButton("🔧 手动开环阀控 (±10V)")
+        self.btn_mode_manual = QPushButton("手动开环 (±10V)")
         self.btn_mode_manual.setCheckable(True)
         self.btn_mode_manual.setChecked(False)
-        self.btn_mode_manual.setFixedHeight(34)
+        self.btn_mode_manual.setFixedHeight(30)
         self.btn_mode_manual.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_mode_auto.clicked.connect(lambda: self._set_mode(True))
@@ -591,7 +584,7 @@ class PitchMainWindow(QMainWindow):
         self.widget_auto_ctrl = QWidget()
         auto_layout = QVBoxLayout(self.widget_auto_ctrl)
         auto_layout.setContentsMargins(0, 2, 0, 0)
-        auto_layout.setSpacing(6)
+        auto_layout.setSpacing(5)
 
         t_row1 = QHBoxLayout()
         lbl_target_tip = QLabel("目标位移:")
@@ -604,7 +597,7 @@ class PitchMainWindow(QMainWindow):
         self.spin_target.setRange(0.0, 822.0)
         self.spin_target.setValue(150.0)
         self.spin_target.setSuffix(" mm")
-        self.spin_target.setFixedWidth(95)
+        self.spin_target.setFixedWidth(85)
 
         self.slider_target.valueChanged.connect(lambda v: self.spin_target.setValue(float(v)))
         self.spin_target.valueChanged.connect(self._on_target_changed)
@@ -615,16 +608,16 @@ class PitchMainWindow(QMainWindow):
         auto_layout.addLayout(t_row1)
 
         t_row2 = QHBoxLayout()
-        t_row2.setSpacing(6)
-        for preset_mm, label in [(0.0, "0mm (全关)"), (150.0, "150mm"), (400.0, "400mm"), (822.0, "822mm (全开)")]:
+        t_row2.setSpacing(4)
+        for preset_mm, label in [(0.0, "0 mm"), (150.0, "150 mm"), (400.0, "400 mm"), (822.0, "822 mm")]:
             btn = QPushButton(label)
-            btn.setFixedHeight(26)
+            btn.setFixedHeight(24)
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: #2C303E;
                     color: #A8DADC;
                     border: 1px solid #44495C;
-                    border-radius: 4px;
+                    border-radius: 3px;
                     font-size: 11px;
                 }
                 QPushButton:hover {
@@ -641,7 +634,7 @@ class PitchMainWindow(QMainWindow):
         self.widget_manual_ctrl = QWidget()
         manual_layout = QVBoxLayout(self.widget_manual_ctrl)
         manual_layout.setContentsMargins(0, 2, 0, 0)
-        manual_layout.setSpacing(6)
+        manual_layout.setSpacing(5)
 
         m_row1 = QHBoxLayout()
         lbl_manual_tip = QLabel("阀控电压:")
@@ -655,7 +648,7 @@ class PitchMainWindow(QMainWindow):
         self.spin_voltage.setSingleStep(0.1)
         self.spin_voltage.setValue(0.0)
         self.spin_voltage.setSuffix(" V")
-        self.spin_voltage.setFixedWidth(95)
+        self.spin_voltage.setFixedWidth(85)
 
         self.slider_voltage.valueChanged.connect(lambda v: self.spin_voltage.setValue(v / 10.0))
         self.spin_voltage.valueChanged.connect(self._on_voltage_changed)
@@ -666,16 +659,16 @@ class PitchMainWindow(QMainWindow):
         manual_layout.addLayout(m_row1)
 
         m_row2 = QHBoxLayout()
-        m_row2.setSpacing(6)
-        for val_v, label in [(-10.0, "-10V (快缩)"), (-5.0, "-5V"), (0.0, "0V (锁闭)"), (5.0, "+5V"), (10.0, "+10V (快伸)")]:
+        m_row2.setSpacing(4)
+        for val_v, label in [(-10.0, "-10 V"), (-5.0, "-5 V"), (0.0, "0 V"), (5.0, "+5 V"), (10.0, "+10 V")]:
             btn = QPushButton(label)
-            btn.setFixedHeight(26)
+            btn.setFixedHeight(24)
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: #2C303E;
                     color: #FFD166;
                     border: 1px solid #44495C;
-                    border-radius: 4px;
+                    border-radius: 3px;
                     font-size: 11px;
                 }
                 QPushButton:hover {
@@ -693,22 +686,22 @@ class PitchMainWindow(QMainWindow):
         layout.addWidget(self.motion_box)
 
         # -------------------------------------------------------------
-        # 2. 变桨机械锁紧装置 40/20X60 (与主缸物理互锁)
+        # 3. 变桨机械锁
         # -------------------------------------------------------------
-        self.lock_box = QGroupBox(" 变桨机械锁紧装置 (40/20X60 锁销与主缸互锁) ")
+        self.lock_box = QGroupBox(" 变桨机械锁 ")
         lock_layout = QVBoxLayout(self.lock_box)
-        lock_layout.setContentsMargins(10, 10, 10, 10)
-        lock_layout.setSpacing(7)
+        lock_layout.setContentsMargins(8, 8, 8, 8)
+        lock_layout.setSpacing(6)
 
-        # 锁控制大按钮
         lock_btn_row = QHBoxLayout()
-        self.btn_lock_release = QPushButton("🔓 拔销解锁 (阀130/132得电)")
-        self.btn_lock_release.setFixedHeight(34)
+        lock_btn_row.setSpacing(8)
+        self.btn_lock_release = QPushButton("🔓 拔销解锁")
+        self.btn_lock_release.setFixedHeight(30)
         self.btn_lock_release.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_lock_release.clicked.connect(self._cmd_unlock)
 
-        self.btn_lock_engage = QPushButton("🔒 插销锁紧 (阀130/132失电)")
-        self.btn_lock_engage.setFixedHeight(34)
+        self.btn_lock_engage = QPushButton("🔒 插销锁定")
+        self.btn_lock_engage.setFixedHeight(30)
         self.btn_lock_engage.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_lock_engage.clicked.connect(self._cmd_lock)
 
@@ -716,56 +709,51 @@ class PitchMainWindow(QMainWindow):
         lock_btn_row.addWidget(self.btn_lock_engage)
         lock_layout.addLayout(lock_btn_row)
 
-        # 锁状态监测标签与报警横幅
-        self.lbl_lock_detail = QLabel("锁销状态: [已拔出解锁 (0.0mm)] | 90°对准: [未对齐]")
+        self.lbl_lock_detail = QLabel("状态: 🟢 已解锁 (0.0 mm) | 90°对准: 否")
         self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
         lock_layout.addWidget(self.lbl_lock_detail)
-
-        self.lbl_lock_warning = QLabel("✔ 变桨锁处于解锁状态，主油缸允许正常动作")
-        self.lbl_lock_warning.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; background-color: #172B23; padding: 4px; border-radius: 4px;")
-        lock_layout.addWidget(self.lbl_lock_warning)
 
         layout.addWidget(self.lock_box)
 
         # -------------------------------------------------------------
-        # 3. 重载工业急停与顺桨调速
+        # 4. 应急顺桨
         # -------------------------------------------------------------
-        self.safe_box = QGroupBox(" 应急顺桨安全回路 (Fail-Safe Feathering) ")
+        self.safe_box = QGroupBox(" 应急顺桨 ")
         safe_layout = QVBoxLayout(self.safe_box)
-        safe_layout.setContentsMargins(10, 10, 10, 10)
-        safe_layout.setSpacing(7)
+        safe_layout.setContentsMargins(8, 8, 8, 8)
+        safe_layout.setSpacing(6)
 
-        self.btn_feather = QPushButton("🛑 模拟安全链失电 (触发蓄能器全速顺桨)")
-        self.btn_feather.setFixedHeight(38)
+        self.btn_feather = QPushButton("🛑 紧急顺桨")
+        self.btn_feather.setFixedHeight(32)
         self.btn_feather.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_feather.clicked.connect(self._on_toggle_feather)
         safe_layout.addWidget(self.btn_feather)
 
-        self.lbl_safe_status = QLabel("安全状态: 【正常带电】比例阀电控变桨运行")
+        self.lbl_safe_status = QLabel("状态: 正常运行")
         self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px;")
         safe_layout.addWidget(self.lbl_safe_status)
         layout.addWidget(self.safe_box)
 
         # -------------------------------------------------------------
-        # 5. 传感器与物理遥测卡片网格
+        # 5. 实时遥测
         # -------------------------------------------------------------
-        tele_box = QGroupBox(" 传感器实时数据 (Telemetry Readout) ")
+        tele_box = QGroupBox(" 实时遥测 ")
         tele_layout = QGridLayout(tele_box)
-        tele_layout.setContentsMargins(10, 10, 10, 10)
-        tele_layout.setSpacing(6)
+        tele_layout.setContentsMargins(8, 8, 8, 8)
+        tele_layout.setSpacing(5)
 
         self.tele_labels = {}
         fields = [
-            ("disp", "双缸行程位移:", "0.0 mm", "#4CC9F0"),
-            ("vel",  "活塞运动速度:", "+0.0 mm/s", "#06D6A0"),
-            ("u_v",  "比例阀电压:",   "0.00 V", "#FFD166"),
-            ("spool","比例阀开度:",   "0.0 %", "#FFD166"),
-            ("pA",   "无杆腔 p_A:",   "15.0 bar", "#EF233C"),
-            ("pB",   "有杆腔 p_B:",   "15.0 bar", "#48CAE4"),
-            ("pacc", "107母管压力:",   "260.0 bar", "#FFB703"),
-            ("pPP",  "变桨锁压 p_PP:", "260.0 bar", "#06D6A0"),
-            ("v25",  "25#电磁阀:",    "失电(卸荷)", "#A8DADC"),
-            ("pP",   "P口供油压力:",   "2.5 bar", "#4CC9F0"),
+            ("disp", "缸位移:", "0.0 mm", "#4CC9F0"),
+            ("vel",  "线速度:", "+0.0 mm/s", "#06D6A0"),
+            ("u_v",  "阀电压:", "0.00 V", "#FFD166"),
+            ("spool","阀开度:", "0.0 %", "#FFD166"),
+            ("pA",   "A腔压力:", "15.0 bar", "#EF233C"),
+            ("pB",   "B腔压力:", "15.0 bar", "#48CAE4"),
+            ("pacc", "蓄能器压:", "260.0 bar", "#FFB703"),
+            ("pPP",  "锁缸压力:", "260.0 bar", "#06D6A0"),
+            ("v25",  "25#阀:",   "失电(卸荷)", "#A8DADC"),
+            ("pP",   "泵口压力:", "2.5 bar", "#4CC9F0"),
         ]
 
         for i, (key, title, default_val, col) in enumerate(fields):
@@ -1035,7 +1023,7 @@ class PitchMainWindow(QMainWindow):
     def _update_feather_button_style(self):
         is_feath = self.is_feathering[self.active_blade]
         if is_feath:
-            self.btn_feather.setText("✔ 恢复正常闭环运行 (复位安全链)")
+            self.btn_feather.setText("✔ 恢复正常闭环运行")
             self.btn_feather.setStyleSheet("""
                 QPushButton {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #06D6A0, stop:1 #058C6B);
@@ -1043,16 +1031,16 @@ class PitchMainWindow(QMainWindow):
                     font-size: 13px;
                     font-weight: bold;
                     border: 2px solid #52FFD1;
-                    border-radius: 8px;
+                    border-radius: 6px;
                 }
                 QPushButton:hover {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #12E6AE, stop:1 #07A37C);
                 }
             """)
-            self.lbl_safe_status.setText(f"安全状态: 【{self.active_blade}面失电断开】★蓄能器全速顺桨中★")
-            self.lbl_safe_status.setStyleSheet("color: #EF233C; font-weight: bold; font-size: 12px;")
+            self.lbl_safe_status.setText(f"状态: ⚠️ 【{self.active_blade}面】应急顺桨中")
+            self.lbl_safe_status.setStyleSheet("color: #EF233C; font-weight: bold; font-size: 11px;")
         else:
-            self.btn_feather.setText("🛑 模拟安全链失电 (触发蓄能器全速顺桨)")
+            self.btn_feather.setText("🛑 模拟紧急顺桨")
             self.btn_feather.setStyleSheet("""
                 QPushButton {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #D90429, stop:1 #9D0208);
@@ -1060,14 +1048,14 @@ class PitchMainWindow(QMainWindow):
                     font-size: 13px;
                     font-weight: bold;
                     border: 2px solid #FF4D6D;
-                    border-radius: 8px;
+                    border-radius: 6px;
                 }
                 QPushButton:hover {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #EF233C, stop:1 #B30006);
                 }
             """)
-            self.lbl_safe_status.setText("安全状态: 【正常带电】比例阀电控变桨运行")
-            self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 12px;")
+            self.lbl_safe_status.setText("状态: 正常运行")
+            self.lbl_safe_status.setStyleSheet("color: #06D6A0; font-weight: bold; font-size: 11px;")
 
     def _update_lock_buttons_style(self):
         u130 = self.u_130_cmd[self.active_blade]
@@ -1182,10 +1170,10 @@ class PitchMainWindow(QMainWindow):
             if hasattr(self, 'opcua_bridge') and self.opcua_bridge:
                 self.opcua_bridge.stop()
 
-            self.btn_local_ctrl.setStyleSheet("background-color: #06D6A0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 12px;")
-            self.btn_remote_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 12px;")
-            self.lbl_auth_status.setText("● 当前处于【本地控制】：允许本面板滑块/自动闭环调桨")
-            self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
+            self.btn_local_ctrl.setStyleSheet("background-color: #06D6A0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+            self.btn_remote_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+            self.lbl_auth_status.setText("● 本地就绪")
+            self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #162E25; border-radius: 4px;")
 
             self.motion_box.setEnabled(True)
             self.lock_box.setEnabled(True)
@@ -1195,10 +1183,10 @@ class PitchMainWindow(QMainWindow):
             if hasattr(self, 'opcua_bridge') and self.opcua_bridge:
                 self.opcua_bridge.start()
 
-            self.btn_local_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 12px;")
-            self.btn_remote_ctrl.setStyleSheet("background-color: #4CC9F0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 12px;")
-            self.lbl_auth_status.setText("🌐 正在连接 CODESYS OPC UA 服务器 (4840)...")
-            self.lbl_auth_status.setStyleSheet("color: #4CC9F0; font-size: 11px; font-weight: bold;")
+            self.btn_local_ctrl.setStyleSheet("background-color: #2C303E; color: #8D99AE; border: 1px solid #44495C; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+            self.btn_remote_ctrl.setStyleSheet("background-color: #4CC9F0; color: #121318; font-weight: bold; border-radius: 4px; font-size: 11px; padding: 0 12px;")
+            self.lbl_auth_status.setText("🔄 连接中 (4840)...")
+            self.lbl_auth_status.setStyleSheet("color: #F77F00; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #2B2317; border-radius: 4px;")
 
             self.motion_box.setEnabled(False)
             self.lock_box.setEnabled(False)
@@ -1284,23 +1272,18 @@ class PitchMainWindow(QMainWindow):
         # 2. 状态条与活动面数据更新
         active_t = telems[self.active_blade]
         self.lbl_clock_stat.setText(
-            f"软实时时钟: {active_t.timestamp:5.2f}s | 单步耗时: {active_t.cycle_time_ms:4.2f}ms | 调度抖动: {active_t.jitter_ms:4.2f}ms | 超载步数: {active_t.overruns}次"
+            f"时钟: {active_t.timestamp:5.1f}s | 周期: {active_t.cycle_time_ms:4.1f}ms | 抖动: {active_t.jitter_ms:4.1f}ms"
         )
 
         # 3. 变桨锁交互状态展示 (针对当前活动面)
-        align_str = "🟢 90°对准可锁" if active_t.switch_129 else "⚪ 未对齐90°"
+        align_str = "90°对齐: 是" if active_t.switch_129 else "90°对齐: 否"
         if active_t.is_locked:
-            lock_str = "🔒 机械刚性已锁死"
-            self.lbl_lock_detail.setText(f"【{self.active_blade}面】锁销状态: [{lock_str} ({active_t.lock_pin_mm:4.1f}mm)] | 90°限位: [{align_str}]")
+            self.lbl_lock_detail.setText(f"状态: 🔒 已锁定 ({active_t.lock_pin_mm:4.1f}mm) | {align_str}")
             self.lbl_lock_detail.setStyleSheet("color: #FFB703; font-size: 11px; font-weight: bold;")
-            self.lbl_lock_warning.setText(f"⚠️ {self.active_blade}面机械锁已锁死！主油缸被刚性锁紧，禁止动作。请先执行【拔销解锁】！")
-            self.lbl_lock_warning.setStyleSheet("color: #EF233C; font-size: 11px; font-weight: bold; background-color: #381519; padding: 4px; border-radius: 4px;")
         else:
-            lock_str = "🔓 已完全拔出解锁" if active_t.switch_S_unlocked else f"⏳ 动作中 ({active_t.lock_pin_mm:4.1f}mm)"
-            self.lbl_lock_detail.setText(f"【{self.active_blade}面】锁销状态: [{lock_str}] | 90°限位: [{align_str}]")
+            lock_str = "🟢 已解锁" if active_t.switch_S_unlocked else f"⏳ 动作中 ({active_t.lock_pin_mm:4.1f}mm)"
+            self.lbl_lock_detail.setText(f"状态: {lock_str} | {align_str}")
             self.lbl_lock_detail.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold;")
-            self.lbl_lock_warning.setText(f"✔ {self.active_blade}面变桨锁处于解锁状态，主油缸允许正常动作")
-            self.lbl_lock_warning.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; background-color: #172B23; padding: 4px; border-radius: 4px;")
 
         # 4. 遥测读数 (当前活动面)
         self.tele_labels["disp"].setText(f"{active_t.displacement_mm:5.1f} mm")
@@ -1311,20 +1294,20 @@ class PitchMainWindow(QMainWindow):
         self.tele_labels["pB"].setText(f"{active_t.p_B_bar:5.1f} bar")
         self.tele_labels["pacc"].setText(f"{active_t.p_acc_bar:5.1f} bar")
         self.tele_labels["pPP"].setText(f"{active_t.p_PP_bar:5.1f} bar")
-        self.tele_labels["v25"].setText("得电(打压)" if active_t.valve_25_state else "失电(卸荷)")
+        self.tele_labels["v25"].setText("打压" if active_t.valve_25_state else "卸荷")
         self.tele_labels["v25"].setStyleSheet("color: #06D6A0; font-family: Consolas; font-size: 12px; font-weight: bold;" if active_t.valve_25_state else "color: #8D99AE; font-family: Consolas; font-size: 12px; font-weight: bold;")
         self.tele_labels["pP"].setText(f"{active_t.p_supply_bar:5.1f} bar")
 
-        # 6. 远程控制模式下实时更新 OPC UA 通讯状态与双向心跳
+        # 5. 远程控制模式下实时更新 OPC UA 通讯状态与双向心跳
         if self.control_mode == 'REMOTE':
             if hasattr(self, 'opcua_bridge') and self.opcua_bridge and self.opcua_bridge.is_connected:
                 hb_plc = self.opcua_bridge.heartbeat_plc
                 hb_sim = self.opcua_bridge.heartbeat_sim
-                self.lbl_auth_status.setText(f"🌐 【远程控制在线】OPC UA (4840) 连通 | PLC心跳: {hb_plc} | 仿真心跳: {hb_sim} | 50Hz 实时同步中")
-                self.lbl_auth_status.setStyleSheet("color: #4CC9F0; font-size: 11px; font-weight: bold;")
+                self.lbl_auth_status.setText(f"🟢 远程在线 (PLC: {hb_plc} | Sim: {hb_sim})")
+                self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 12px; font-weight: bold;")
             else:
-                self.lbl_auth_status.setText("🔄 【远程控制】正在连接 CODESYS OPC UA 服务器 (4840)...")
-                self.lbl_auth_status.setStyleSheet("color: #F77F00; font-size: 11px; font-weight: bold;")
+                self.lbl_auth_status.setText("🔄 连接中 (4840)...")
+                self.lbl_auth_status.setStyleSheet("color: #FFB703; font-size: 12px; font-weight: bold;")
 
     def closeEvent(self, event):
         self.timer.stop()
