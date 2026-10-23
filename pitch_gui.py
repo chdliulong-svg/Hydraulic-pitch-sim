@@ -33,6 +33,7 @@ from PyQt6.QtCore import Qt, QTimer
 import pyqtgraph as pg
 from pitch_soft_realtime import SoftRealtimePitchEngine
 from pitch_opcua_bridge import PitchOpcUaBridge
+from pitch_conn_dialog import ConnectionSettingsDialog, load_connection_config
 
 
 # =============================================================================
@@ -402,11 +403,16 @@ class PitchMainWindow(QMainWindow):
         self.engine = SoftRealtimePitchEngine(cycle_time_s=0.005)
         self.engine.start()
 
-        # 初始化 CODESYS OPC UA 桥接网关 (200Hz / 5ms 纳秒级对齐，选择远程控制时自动开启通讯)
+        # 读取持久化 OPC UA 连接参数配置
+        self.conn_config = load_connection_config()
+        self.opcua_endpoint = self.conn_config.get("endpoint", "opc.tcp://127.0.0.1:4840")
+        self.opcua_cycle_time_s = float(self.conn_config.get("cycle_time_ms", 5.0)) / 1000.0
+
+        # 初始化 CODESYS OPC UA 桥接网关 (微周期纳秒级对齐，选择远程控制时自动开启通讯)
         self.opcua_bridge = PitchOpcUaBridge(
-            endpoint="opc.tcp://127.0.0.1:4840",
+            endpoint=self.opcua_endpoint,
             engine=self.engine,
-            cycle_time_s=0.005
+            cycle_time_s=self.opcua_cycle_time_s
         )
 
         # 控制状态 (支持多面独立或同步联动)
@@ -501,6 +507,34 @@ class PitchMainWindow(QMainWindow):
         self.lbl_auth_status = QLabel("● 本地就绪")
         self.lbl_auth_status.setStyleSheet("color: #06D6A0; font-size: 11px; font-weight: bold; padding: 2px 8px; background-color: #162E25; border-radius: 4px;")
         top_layout.addWidget(self.lbl_auth_status)
+
+        # 连接设置小齿轮图标按钮
+        self.btn_conn_settings = QPushButton("⚙")
+        self.btn_conn_settings.setFixedHeight(28)
+        self.btn_conn_settings.setFixedWidth(32)
+        self.btn_conn_settings.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_conn_settings.setToolTip("OPC UA 通讯参数与连接诊断设置")
+        self.btn_conn_settings.setStyleSheet("""
+            QPushButton {
+                background-color: #212530;
+                color: #A0AAB8;
+                border: 1px solid #363D4E;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2E3445;
+                color: #4CC9F0;
+                border-color: #4CC9F0;
+            }
+            QPushButton:pressed {
+                background-color: #1A1D26;
+                color: #06D6A0;
+            }
+        """)
+        self.btn_conn_settings.clicked.connect(self._open_conn_settings)
+        top_layout.addWidget(self.btn_conn_settings)
 
         top_layout.addStretch()
 
@@ -1882,6 +1916,39 @@ class PitchMainWindow(QMainWindow):
             else:
                 self.engine.set_inputs(blade=k, u_safe_feather=0.0, u_enable=1.0)
         self._update_feather_button_style()
+
+    def _open_conn_settings(self):
+        """弹出 OPC UA 通讯参数与连接诊断设置对话框"""
+        dlg = ConnectionSettingsDialog(parent=self, current_config=self.conn_config, on_apply=self._apply_conn_config)
+        dlg.exec()
+
+    def _apply_conn_config(self, new_config: dict):
+        """应用并热重载 OPC UA 连接参数"""
+        self.conn_config = new_config
+        new_endpoint = new_config.get("endpoint", "opc.tcp://127.0.0.1:4840")
+        new_cycle_s = float(new_config.get("cycle_time_ms", 5.0)) / 1000.0
+
+        endpoint_changed = (new_endpoint != self.opcua_endpoint)
+        cycle_changed = (abs(new_cycle_s - self.opcua_cycle_time_s) > 1e-4)
+
+        self.opcua_endpoint = new_endpoint
+        self.opcua_cycle_time_s = new_cycle_s
+
+        if endpoint_changed or cycle_changed:
+            was_running = False
+            if hasattr(self, 'opcua_bridge') and self.opcua_bridge:
+                was_running = self.opcua_bridge.is_connected or (self.control_mode == 'REMOTE')
+                self.opcua_bridge.stop()
+
+            # 重新实例化带新配置的 Bridge
+            self.opcua_bridge = PitchOpcUaBridge(
+                endpoint=self.opcua_endpoint,
+                engine=self.engine,
+                cycle_time_s=self.opcua_cycle_time_s
+            )
+
+            if was_running and self.control_mode == 'REMOTE':
+                self.opcua_bridge.start()
 
     def _set_control_authority(self, mode: str):
         is_local = (mode == "LOCAL")
