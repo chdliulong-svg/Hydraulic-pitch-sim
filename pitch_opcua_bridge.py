@@ -183,7 +183,13 @@ class PitchOpcUaBridge:
                             f"bValve130_{b}",
                             f"bValve132_{b}",
                         ])
-                    candidate_cmds.extend(["bValve25_Cmd", "udiHeartbeatPlc", "sControlModeCmd"])
+                    candidate_cmds.extend([
+                        "bValve25_Cmd",
+                        "bHubLubPump1On",
+                        "bHubLubPump2On",
+                        "udiHeartbeatPlc",
+                        "sControlModeCmd"
+                    ])
                     active_cmd_names = [n for n in candidate_cmds if n in available_names]
                     cmd_nodes = [client.get_node(f"{prefix}{n}") for n in active_cmd_names]
 
@@ -214,6 +220,15 @@ class PitchOpcUaBridge:
                         ("rSimTime", lambda fb, st, hb: float(st), ua.VariantType.Float),
                         ("sControlModeActive", lambda fb, st, hb: "REMOTE", ua.VariantType.String),
                         ("udiHeartbeatSim", lambda fb, st, hb: int(hb), ua.VariantType.UInt32),
+                        # 6MW 轮毂润滑系统遥测反馈
+                        ("bHubLub1OilLevelOk", lambda fb, st, hb: bool(fb.lubrication.tank1_level_ok if fb and fb.lubrication else True), ua.VariantType.Boolean),
+                        ("bHubLub1PistonAMoving", lambda fb, st, hb: bool(fb.lubrication.piston1_a if fb and fb.lubrication else False), ua.VariantType.Boolean),
+                        ("bHubLub1PistonBMoving", lambda fb, st, hb: bool(fb.lubrication.piston1_b if fb and fb.lubrication else False), ua.VariantType.Boolean),
+                        ("bHubLub1PistonCMoving", lambda fb, st, hb: bool(fb.lubrication.piston1_c if fb and fb.lubrication else False), ua.VariantType.Boolean),
+                        ("bHubLub2OilLevelOk", lambda fb, st, hb: bool(fb.lubrication.tank2_level_ok if fb and fb.lubrication else True), ua.VariantType.Boolean),
+                        ("bHubLub2PistonAMoving", lambda fb, st, hb: bool(fb.lubrication.piston2_a if fb and fb.lubrication else False), ua.VariantType.Boolean),
+                        ("bHubLub2PistonBMoving", lambda fb, st, hb: bool(fb.lubrication.piston2_b if fb and fb.lubrication else False), ua.VariantType.Boolean),
+                        ("bHubLub2PistonCMoving", lambda fb, st, hb: bool(fb.lubrication.piston2_c if fb and fb.lubrication else False), ua.VariantType.Boolean),
                     ])
 
                     # 仅保留 PLC 当前符号表中实际存在的变量节点，彻底杜绝 BadNodeIdInvalid
@@ -310,6 +325,11 @@ class PitchOpcUaBridge:
                                     valve_130=_safe_bool(cmd_map.get(f"bValve130_{b}"), True),
                                     valve_132=_safe_bool(cmd_map.get(f"bValve132_{b}"), True),
                                 )
+                            # 6MW 轮毂润滑泵控制指令 (PLC -> Sim)
+                            self.engine.set_remote_lub_commands(
+                                pump1_on=_safe_bool(cmd_map.get("bHubLubPump1On"), False),
+                                pump2_on=_safe_bool(cmd_map.get("bHubLubPump2On"), False)
+                            )
 
                         # --- 步骤 B: 收集仿真内核物理遥测并批量写入 PLC ---
                         self.heartbeat_sim = (self.heartbeat_sim + 1) % 0xFFFFFFFF

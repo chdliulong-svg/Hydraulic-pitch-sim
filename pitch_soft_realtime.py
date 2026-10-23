@@ -19,6 +19,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 from pitch_simulation import PitchHydraulicSystem
+from pitch_lubrication_sim import LubricationSystemSim, LubricationTelemetry
 
 
 @dataclass
@@ -81,6 +82,7 @@ class RemoteSystemFeedback:
     q_hpu_lpm: float = 0.0             # 泵站实际供油流量 (L/min)
     motor_rpm: float = 1450.0          # 电机转速 (rpm)
     timestamp: float = 0.0             # 仿真时钟 (s)
+    lubrication: Optional[LubricationTelemetry] = None # 6MW 轮毂润滑系统遥测
     blades: Dict[str, RemoteBladeFeedback] = field(default_factory=dict)
 
 
@@ -138,6 +140,14 @@ class SoftRealtimePitchEngine:
         self.P_supply = 260.0e5
         self.Q_hpu_actual = 0.0
 
+        # 6MW 轮毂双泵集中润滑系统动态模型
+        self.lub_sim = LubricationSystemSim(dt=self.cycle_time)
+        self._lub_telemetry = LubricationTelemetry()
+        self._lub_cmd_pump1_local = False
+        self._lub_cmd_pump2_local = False
+        self._lub_cmd_pump1_remote = False
+        self._lub_cmd_pump2_remote = False
+
         self._running = False
         self._thread = None
         self.sim_time = 0.0
@@ -161,6 +171,8 @@ class SoftRealtimePitchEngine:
             with self._lock:
                 current_mode = self.control_mode
                 if current_mode == 'REMOTE':
+                    cmd_lub_p1 = self._lub_cmd_pump1_remote
+                    cmd_lub_p2 = self._lub_cmd_pump2_remote
                     # 远程模式：根据下发的远程各电磁阀与比例阀指令合成动力学输入
                     current_inputs = {}
                     for k in self.blades:
@@ -180,6 +192,8 @@ class SoftRealtimePitchEngine:
                             u_valve_132=u_valve_132
                         )
                 else:
+                    cmd_lub_p1 = self._lub_cmd_pump1_local
+                    cmd_lub_p2 = self._lub_cmd_pump2_local
                     # 本地模式：由本地 UI 面板驱动
                     current_inputs = {
                         k: PitchControlInputs(
@@ -241,6 +255,9 @@ class SoftRealtimePitchEngine:
                     plant.P_supply = self.P_supply
                     step_outputs[k] = (x, v, p_acc, p_A, p_B, valve_pos)
 
+            # 推进 6MW 轮毂润滑系统动力学 (以仿真主循环步长推进)
+            lub_tele = self.lub_sim.step(cmd_lub_p1, cmd_lub_p2)
+
             self.sim_time += self.cycle_time
 
             # 3. 统计实时性指标
@@ -251,6 +268,7 @@ class SoftRealtimePitchEngine:
             last_t = t_start
 
             with self._lock:
+                self._lub_telemetry = lub_tele
                 for k in self.blades:
                     x, v, p_acc, p_A, p_B, valve_pos = step_outputs[k]
                     plant = self.plants[k]
@@ -423,6 +441,7 @@ class SoftRealtimePitchEngine:
                 q_hpu_lpm=self.Q_hpu_actual * 60000.0,
                 motor_rpm=self.n_motor_rpm,
                 timestamp=self.sim_time,
+                lubrication=self._lub_telemetry,
                 blades=blade_fbs
             )
 
@@ -461,3 +480,31 @@ class SoftRealtimePitchEngine:
     def get_all_telemetry(self) -> dict:
         with self._lock:
             return dict(self._telemetries)
+
+    # -------------------------------------------------------------------------
+    # 6MW 轮毂集中润滑系统接口
+    # -------------------------------------------------------------------------
+    def get_lub_telemetry(self) -> LubricationTelemetry:
+        with self._lock:
+            return self._lub_telemetry
+
+    def set_remote_lub_commands(self, pump1_on: bool, pump2_on: bool):
+        with self._lock:
+            self._lub_cmd_pump1_remote = bool(pump1_on)
+            self._lub_cmd_pump2_remote = bool(pump2_on)
+
+    def set_local_lub_commands(self, pump1_on: Optional[bool] = None, pump2_on: Optional[bool] = None):
+        with self._lock:
+            if pump1_on is not None:
+                self._lub_cmd_pump1_local = bool(pump1_on)
+            if pump2_on is not None:
+                self._lub_cmd_pump2_local = bool(pump2_on)
+
+    def set_lub_faults(self, tank1_empty=None, tank2_empty=None, block_1=None, block_2=None):
+        with self._lock:
+            self.lub_sim.set_faults(
+                tank1_empty=tank1_empty,
+                tank2_empty=tank2_empty,
+                block_1=block_1,
+                block_2=block_2
+            )
