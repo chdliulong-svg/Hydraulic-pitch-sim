@@ -463,8 +463,8 @@ class PitchMainWindow(QMainWindow):
     def _on_lub_faults_changed(self, t1, t2, b1, b2):
         self.engine.set_lub_faults(tank1_empty=t1, tank2_empty=t2, block_1=b1, block_2=b2)
 
-    def _on_temp_faults_changed(self, oil_oh, cold, fan_fail, pt100):
-        self.engine.set_temp_faults(oil_overheat=oil_oh, extreme_cold=cold, fan_fail=fan_fail, pt100_open=pt100)
+    def _on_temp_faults_changed(self, cold, fan_fail, pt100):
+        self.engine.set_temp_faults(extreme_cold=cold, fan_fail=fan_fail, pt100_open=pt100)
 
     # =========================================================================
     # 50 FPS 核心循环

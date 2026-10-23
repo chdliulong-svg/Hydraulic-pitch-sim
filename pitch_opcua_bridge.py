@@ -230,7 +230,6 @@ class PitchOpcUaBridge:
                         ("bHubLub2PistonBMoving", lambda fb, st, hb: bool(fb.lubrication.piston2_b if fb and fb.lubrication else False), ua.VariantType.Boolean),
                         ("bHubLub2PistonCMoving", lambda fb, st, hb: bool(fb.lubrication.piston2_c if fb and fb.lubrication else False), ua.VariantType.Boolean),
                         # 6MW 轮毂温度热力学系统遥测反馈
-                        ("rTempOil_degC", lambda fb, st, hb: float(fb.temperature.temp_oil_deg if fb and fb.temperature else 42.5), ua.VariantType.Float),
                         ("rTempHub_degC", lambda fb, st, hb: float(fb.temperature.temp_hub_deg if fb and fb.temperature else 25.0), ua.VariantType.Float),
                         ("rTempCabinet_degC", lambda fb, st, hb: float(fb.temperature.temp_cabinet_deg if fb and fb.temperature else 32.0), ua.VariantType.Float),
                         ("rTempAirgap_degC", lambda fb, st, hb: float(fb.temperature.temp_airgap_deg if fb and fb.temperature else 38.0), ua.VariantType.Float),
@@ -289,11 +288,6 @@ class PitchOpcUaBridge:
 
                     # 4. 6MW 轮毂温度系统底层 raw 硬件采样通道 (0.1 °C/count)
                     raw_fb_candidates.extend([
-                        (
-                            "ns=4;s=|var|CODESYS Control Win V3.PAC.pac.io.ai.raw.tempOil",
-                            lambda fb, st, hb: int(max(-32768, min(32767, round(fb.temperature.temp_oil_deg * 10.0)))) if fb and fb.temperature else 425,
-                            ua.VariantType.Int16
-                        ),
                         (
                             "ns=4;s=|var|CODESYS Control Win V3.PAC.pac.io.ai.raw.tempHub",
                             lambda fb, st, hb: int(max(-32768, min(32767, round(fb.temperature.temp_hub_deg * 10.0)))) if fb and fb.temperature else 250,

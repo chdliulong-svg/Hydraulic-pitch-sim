@@ -557,11 +557,11 @@ class SoftRealtimePitchEngine:
         with self._lock:
             self.temp_sim.set_ambient_temperature(temp_deg)
 
-    def set_temp_faults(self, oil_overheat=None, extreme_cold=None, fan_fail=None, pt100_open=None):
+    def set_temp_faults(self, extreme_cold=None, fan_fail=None, pt100_open=None, **kwargs):
         with self._lock:
             self.temp_sim.set_faults(
-                oil_overheat=oil_overheat,
                 extreme_cold=extreme_cold,
                 fan_fail=fan_fail,
-                pt100_open=pt100_open
+                pt100_open=pt100_open,
+                **kwargs
             )
